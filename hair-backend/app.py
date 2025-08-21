@@ -48,7 +48,7 @@ def detect_hair_with_segmenter(image, hair_segmenter):
     
     # Check if significant hair is detected (at least 3% of image)
     if hair_coverage < 0.03:  # Reduced from 0.05 to 0.03
-        return False, None, None, binary_hair_mask
+        return binary_hair_mask
     
     # Extract hair pixels for color analysis with additional filtering
     hair_pixel_mask = (binary_hair_mask > 0)
@@ -96,6 +96,7 @@ def detect_hair_with_segmenter(image, hair_segmenter):
 
 @app.post("/")
 async def segment_hair(file: UploadFile = File(...)):
+    
     # Read uploaded image
     contents = await file.read()
     np_arr = np.frombuffer(contents, np.uint8)
@@ -110,9 +111,11 @@ async def segment_hair(file: UploadFile = File(...)):
 
     # Run segmentation
     hair_mask = detect_hair_with_segmenter(image, hair_segmenter)
+    # Flip the binary mask. Needed because of a bug in the app.
     flipped_hair_mask = np.flipud(hair_mask)
-    # Assuming binary_hair_mask is a uint8 mask with 0 = background, 255 = hair
 
+    # Assuming binary_hair_mask is a uint8 mask with 0 = background, 255 = hair
+    # Convert to .png and return
     _, png_data = cv2.imencode(".png", flipped_hair_mask)
 
     return Response(content=png_data.tobytes(), media_type="image/png")
