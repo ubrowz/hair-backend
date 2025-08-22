@@ -18,6 +18,16 @@ import tempfile
 
 app = FastAPI()
 
+# ✅ Load model ONCE at startup
+hair_segmenter_base_options = python.BaseOptions(model_asset_path="hair_segmenter.tflite")
+hair_segmenter_options = vision.ImageSegmenterOptions(
+    base_options=hair_segmenter_base_options,
+    output_confidence_masks=True
+)
+hair_segmenter = vision.ImageSegmenter.create_from_options(hair_segmenter_options)
+
+
+
 def detect_hair_with_segmenter(image, hair_segmenter):
     """Use MediaPipe Hair Segmenter to detect hair and extract color."""
     # Convert BGR to RGB for MediaPipe
@@ -102,13 +112,6 @@ async def segment_hair(file: UploadFile = File(...)):
     np_arr = np.frombuffer(contents, np.uint8)
     image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
     
-    # Create Hair Segmenter
-    hair_segmenter_base_options = python.BaseOptions(model_asset_path='hair_segmenter.tflite')
-    hair_segmenter_options = vision.ImageSegmenterOptions(
-        base_options=hair_segmenter_base_options,
-        output_confidence_masks=True)
-    hair_segmenter = vision.ImageSegmenter.create_from_options(hair_segmenter_options)
-
     # Run segmentation
     hair_mask = detect_hair_with_segmenter(image, hair_segmenter)
     # Flip the binary mask. Needed because of a bug in the app.
