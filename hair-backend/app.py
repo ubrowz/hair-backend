@@ -40,7 +40,7 @@ def detect_hair_with_segmenter(image, hair_segmenter):
     hair_mask = segmentation_result.confidence_masks[0].numpy_view()
     
     # Use a higher threshold for more precise hair detection
-    binary_hair_mask = (1-(hair_mask > 0.9).astype(np.uint8)) * 255  # Increased from 0.5 to 0.7
+    binary_hair_mask = (1-(hair_mask > 0.4).astype(np.uint8)) * 255  # Increased from 0.5 to 0.7
     
     # Apply morphological operations to clean up the mask
     kernel = np.ones((3,3), np.uint8)
