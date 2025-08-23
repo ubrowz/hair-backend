@@ -65,7 +65,7 @@ async def segment_hair(file: UploadFile = File(...)):
 
     # Assuming binary_hair_mask is a uint8 mask with 0 = background, 255 = hair
     # Convert to .png and return
-#    _, png_data = cv2.imencode(".png", flipped_hair_mask)
-    _, png_data = cv2.imencode(".png", hair_mask)
+    _, png_data = cv2.imencode(".png", flipped_hair_mask)
+#    _, png_data = cv2.imencode(".png", hair_mask)
 
     return Response(content=png_data.tobytes(), media_type="image/png")
