@@ -23,6 +23,19 @@ hair_segmenter_options = vision.ImageSegmenterOptions(
 )
 hair_segmenter = vision.ImageSegmenter.create_from_options(hair_segmenter_options)
 
+def soften_mask(binary_mask, blur_size=15, sigma=5):
+    """
+    binary_mask: numpy array with values 0 or 255
+    blur_size: size of the Gaussian kernel (odd number, e.g. 15)
+    sigma: standard deviation of Gaussian
+    """
+    # Ensure mask is uint8
+    mask = binary_mask.astype(np.uint8)
+
+    # Apply Gaussian blur
+    soft_mask = cv2.GaussianBlur(mask, (blur_size, blur_size), sigma)
+
+    return soft_mask
 
 
 def detect_hair_with_segmenter(image, hair_segmenter):
@@ -62,10 +75,12 @@ async def segment_hair(file: UploadFile = File(...)):
     hair_mask = detect_hair_with_segmenter(image, hair_segmenter)
     # Flip the binary mask. Needed because of a bug in the app.
     flipped_hair_mask = np.flipud(hair_mask)
+    
+    soft_flipped_hair_mask = soften_mask(flipped_hair_mask)
 
     # Assuming binary_hair_mask is a uint8 mask with 0 = background, 255 = hair
     # Convert to .png and return
-    _, png_data = cv2.imencode(".png", flipped_hair_mask)
-#    _, png_data = cv2.imencode(".png", hair_mask)
+    _, png_data = cv2.imencode(".png", soft_flipped_hair_mask)
+
 
     return Response(content=png_data.tobytes(), media_type="image/png")
