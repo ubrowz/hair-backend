@@ -63,7 +63,7 @@ def detect_hair_with_segmenter(image, hair_segmenter):
     return binary_hair_mask
 
 
-@app.post("/")
+@app.post("/hair/")
 async def segment_hair(file: UploadFile = File(...)):
     
     # Read uploaded image
