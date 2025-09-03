@@ -206,7 +206,7 @@ async def button_clicked(params: Parameters):
     plt.axis("off")
     currentAxis.add_patch(plt.Rectangle((0 ,0), 1, 1, facecolor=(0 ,0 ,0) ,transform=currentAxis.transAxes, zorder=-1))
     
-    buf = io.Bytes.IO()
+    buf = io.BytesIO()
     
     plt.savefig(buf, format="png")
     buf.seek(0)
