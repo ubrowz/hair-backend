@@ -32,14 +32,14 @@ hair_segmenter_options = vision.ImageSegmenterOptions(
 hair_segmenter = vision.ImageSegmenter.create_from_options(hair_segmenter_options)
 
 class Parameters(BaseModel):
-    width_basic: float
-    nozzle_speed: float
-    diameter: float
-    rot_speed : float
-    flow : float
-    spinning_time : int
-    voltage_level : float
-    hidden_constant: float
+    param1: float
+    param2: float
+    param3: float
+    param4 : float
+    param5 : float
+    param6 : float
+    param7 : float
+    param8 : float
 
 layers = 50
 canvas_width = 180
@@ -149,14 +149,14 @@ def rand_angle(mu, sigma):
 
 @app.post("/spinner/")
 async def button_clicked(params: Parameters):
-    width_basic = params.width_basic
-    nozzle_speed = params.nozzle_speed
-    diameter = params.diameter
-    rot_speed = params.rot_speed
-    flow = params.flow
-    spinning_time = params.spinning_time
-    voltage_level = params.voltage_level
-    hidden_constant = params.hidden_constant
+    width_basic = params.param1
+    nozzle_speed = params.param2
+    diameter = params.param3
+    rot_speed = params.param4
+    flow = params.param5
+    spinning_time = int(params.param6)
+    voltage_level = params.param7
+    hidden_constant = params.param8
 
         
     dep_length = math.sqrt( nozzle_speed**2 + (math.pi * diameter * (rot_speed /60) )**2)
