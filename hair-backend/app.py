@@ -10,8 +10,16 @@ from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 from fastapi import FastAPI, File, UploadFile
 from fastapi.responses import Response
+from fastapi.responses import StreamingResponse
 import cv2
 import numpy as np
+from pydantic import BaseModel
+import io
+import matplotlib.pyplot as plt
+import math
+from matplotlib.patches import Rectangle
+import random
+
 
 app = FastAPI()
 
@@ -22,6 +30,23 @@ hair_segmenter_options = vision.ImageSegmenterOptions(
     output_confidence_masks=True
 )
 hair_segmenter = vision.ImageSegmenter.create_from_options(hair_segmenter_options)
+
+class Parameters(BaseModel):
+    width_basic: float
+    nozzle_speed: float
+    diameter: float
+    rot_speed : float
+    flow : float
+    spinning_time : int
+    voltage_level : float
+    hidden_constant: float
+
+layers = 50
+canvas_width = 180
+canvas_height = 180
+director = 270
+gaussian = "Y"
+
 
 def soften_mask(binary_mask, blur_size=15, sigma=5):
     """
@@ -84,3 +109,108 @@ async def segment_hair(file: UploadFile = File(...)):
 
 
     return Response(content=png_data.tobytes(), media_type="image/png")
+
+def rand_coord(angle):
+    xrand = canvas_width * random.random()
+    yrand = canvas_height * random.random()
+    if 0.0 <= angle <= 45:
+        xcoord = xrand + canvas_height * math.tan(math.radians(angle))
+        ycoord = yrand - canvas_height
+    elif 45 < angle <= 90:
+        xcoord = canvas_width + xrand
+        ycoord = yrand - canvas_width * math.tan(math.radians(90 - angle))
+    elif 90 < angle <= 135:
+        xcoord = canvas_width + xrand
+        ycoord = yrand + canvas_width * math.tan(math.radians(angle - 90))
+    else:
+        xcoord = xrand + canvas_height * math.tan(math.radians(180 -angle))
+        ycoord = yrand + canvas_height
+    return xcoord, ycoord
+
+def rand_angle(mu, sigma):
+    if sigma > 360:
+        sigma = 360
+    
+    if gaussian == "Y":
+        angle = random.gauss(mu, sigma)
+    if gaussian == "N":
+        angle = 360 * random.random()
+    
+    if angle < 0:
+        angle += 360
+        
+    if angle > 360:
+        angle -= 360
+        
+        
+    if 180 <= angle <= 360:
+        angle -= 180
+    return angle
+
+@app.post("/spinner/")
+async def button_clicked(params: Parameters):
+    width_basic = params.width_basic
+    nozzle_speed = params.nozzle_speed
+    diameter = params.diameter
+    rot_speed = params.rot_speed
+    flow = params.flow
+    spinning_time = params.spinning_time
+    voltage_level = params.voltage_level
+    hidden_constant = params.hidden_constant
+
+        
+    dep_length = math.sqrt( nozzle_speed**2 + (math.pi * diameter * (rot_speed /60) )**2)
+    sigma_angle = (( hidden_constant * (flow) /((width_basic)**2)) /dep_length)/(voltage_level)
+    N_fibers = spinning_time * 60
+   
+    random.seed()
+
+    rect_length = 150 * math.sqrt(canvas_width**2 + canvas_height**2)
+
+    noz_angle = math.degrees(math.atan(nozzle_speed /(math.pi * diameter * (rot_speed /60))))
+
+    director_one = director + noz_angle
+    director_two = director - noz_angle
+    
+    currentAxis = plt.gca()
+    
+    fibers_in_layer = N_fibers // layers
+
+    for i in range(N_fibers):
+        
+        fiber_range = i // fibers_in_layer
+        fiber_color = 0.028+(0.37/layers)*fiber_range+(0.37/layers)*random.random()
+        fiber_depth = layers - fiber_range
+        fiber_delta_width = fiber_depth * 0.015 * width_basic
+        
+        
+        if i % 2 == 0:
+            randangle = rand_angle(director_one ,sigma_angle)
+            randcoord = rand_coord(randangle)
+            vierhoek = Rectangle(randcoord ,width_basic - fiber_delta_width ,rect_length ,angle=randangle ,lw=1 ,ec="white"
+                                  ,fc=str(fiber_color))
+
+            currentAxis.add_patch(vierhoek)
+        else:
+            randangle = rand_angle(director_two ,sigma_angle)
+            randcoord = rand_coord(randangle)
+            vierhoek = Rectangle(randcoord ,width_basic - fiber_delta_width ,rect_length ,angle=randangle ,lw=1 ,ec="white"
+                                  ,fc=str(fiber_color))
+
+            currentAxis.add_patch(vierhoek)
+
+    currentAxis.set_aspect(aspect=1)            
+    plt.xlim([0 ,canvas_width])
+    plt.ylim([0 ,canvas_height])
+
+    plt.axis("off")
+    currentAxis.add_patch(plt.Rectangle((0 ,0), 1, 1, facecolor=(0 ,0 ,0) ,transform=currentAxis.transAxes, zorder=-1))
+    
+    buf = io.Bytes.IO()
+    
+    plt.savefig(buf, format="png")
+    buf.seek(0)
+
+    plt.close()
+
+    return StreamingResponse(buf, media_type="image/png")
