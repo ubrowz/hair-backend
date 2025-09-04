@@ -147,6 +147,27 @@ def rand_angle(mu, sigma):
         angle -= 180
     return angle
 
+def calculate_order_parameter_for_direction(angles_deg, direction_deg):
+    
+    delta = np.deg2rad(angles_deg = direction_deg)
+    cos2theta = np.cos(2*delta) 
+    S=np.mean(cos2theta)
+    return S
+
+def scan_all_directions(angles_deg):
+    
+    directions = np.arange(0, 180)
+    S_max = -1.0
+    D_max = -1.0
+    S_values = []
+    for direction in directions:
+        S = calculate_order_parameter_for_direction(angles_deg, direction)
+        if S > S_max:
+            S_max = S 
+            D_max = direction
+        S_values.append(S)
+    return D_max, S_max
+
 @app.post("/spinner/")
 async def button_clicked(params: Parameters):
     width_basic = params.param1
@@ -176,6 +197,7 @@ async def button_clicked(params: Parameters):
     currentAxis = plt.gca()
     
     fibers_in_layer = N_fibers // layers
+    all_angles = []
 
     for i in range(N_fibers):
         
@@ -187,6 +209,7 @@ async def button_clicked(params: Parameters):
         
         if i % 2 == 0:
             randangle = rand_angle(director_one ,sigma_angle)
+            all_angles.append(randangle)
             randcoord = rand_coord(randangle)
             vierhoek = Rectangle(randcoord ,width_basic - fiber_delta_width ,rect_length ,angle=randangle ,lw=1 ,ec="white"
                                   ,fc=str(fiber_color))
@@ -194,6 +217,7 @@ async def button_clicked(params: Parameters):
             currentAxis.add_patch(vierhoek)
         else:
             randangle = rand_angle(director_two ,sigma_angle)
+            all_angles.append(randangle)
             randcoord = rand_coord(randangle)
             vierhoek = Rectangle(randcoord ,width_basic - fiber_delta_width ,rect_length ,angle=randangle ,lw=1 ,ec="white"
                                   ,fc=str(fiber_color))
@@ -207,8 +231,10 @@ async def button_clicked(params: Parameters):
     plt.axis("off")
     currentAxis.add_patch(plt.Rectangle((0 ,0), 1, 1, facecolor=(0 ,0 ,0) ,transform=currentAxis.transAxes, zorder=-1))
     
+    primary_direction, Chybishev = scan_all_directions(all_angles)
+    
     # Add text at specific coordinates
-    plt.text(0, -8, f"Whipping Factor: {whipping_factor:.2f}" , fontsize=10, color="gray", ha="left")
+    plt.text(0, -8, f"Whipping Factor: {whipping_factor:.2f}\nChybishev: {Chybishev:.2f}\Director: {primary_direction:.2f}" , fontsize=10, color="gray", ha="left")
 
     
     buf = io.BytesIO()
