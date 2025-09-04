@@ -161,12 +161,13 @@ async def button_clicked(params: Parameters):
         
     dep_length = math.sqrt( nozzle_speed**2 + (math.pi * diameter * (rot_speed /60) )**2)
     sigma_angle = (( hidden_constant * (flow) /((width_basic)**2)) /dep_length)/(voltage_level)
+        
+    whipping_factor = sigma_angle * voltage_level
     N_fibers = spinning_time * 60
    
     random.seed()
 
     rect_length = 150 * math.sqrt(canvas_width**2 + canvas_height**2)
-
     noz_angle = math.degrees(math.atan(nozzle_speed /(math.pi * diameter * (rot_speed /60))))
 
     director_one = director + noz_angle
@@ -205,6 +206,10 @@ async def button_clicked(params: Parameters):
 
     plt.axis("off")
     currentAxis.add_patch(plt.Rectangle((0 ,0), 1, 1, facecolor=(0 ,0 ,0) ,transform=currentAxis.transAxes, zorder=-1))
+    
+    # Add text at specific coordinates
+    plt.text(2, 5, f"whipping Factor: {whipping_factor:.2f}" , fontsize=12, color="red", ha="center")
+
     
     buf = io.BytesIO()
     
