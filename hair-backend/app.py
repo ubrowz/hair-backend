@@ -149,7 +149,7 @@ def rand_angle(mu, sigma):
 
 def calculate_order_parameter_for_direction(angles_deg, direction_deg):
     
-    delta = np.deg2rad(angles_deg = direction_deg)
+    delta = np.deg2rad(angles_deg - direction_deg)
     cos2theta = np.cos(2*delta) 
     S=np.mean(cos2theta)
     return S
