@@ -234,8 +234,7 @@ async def button_clicked(params: Parameters):
     primary_direction, Chybishev = scan_all_directions(all_angles)
     
     # Add text at specific coordinates
-    plt.text(0, -8, f"Whipping Factor: {whipping_factor:.2f}\nChybishev: {Chybishev:.2f}\Director: {primary_direction:.2f}" , fontsize=10, color="gray", ha="left")
-
+    plt.text(0, -8, f"Whipping Factor: {whipping_factor:.2f}\nChybishev: {Chybishev:.2f}\nDirector: {primary_direction:.2f}" , fontsize=10, color="gray", ha="left", va="top")
     
     buf = io.BytesIO()
     
