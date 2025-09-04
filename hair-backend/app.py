@@ -208,7 +208,7 @@ async def button_clicked(params: Parameters):
     currentAxis.add_patch(plt.Rectangle((0 ,0), 1, 1, facecolor=(0 ,0 ,0) ,transform=currentAxis.transAxes, zorder=-1))
     
     # Add text at specific coordinates
-    plt.text(2, 5, f"whipping Factor: {whipping_factor:.2f}" , fontsize=12, color="red", ha="center")
+    plt.text(1, 1, f"Whipping Factor: {whipping_factor:.2f}" , fontsize=10, color="gray", ha="left")
 
     
     buf = io.BytesIO()
