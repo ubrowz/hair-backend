@@ -46,6 +46,13 @@ canvas_width = 180
 canvas_height = 180
 director = 270
 gaussian = "Y"
+prom = 0.15 # how much a peak should stand out from the surrounding baseline
+hght = 0.35 # what should be the minimal height of a local max to be called a peak
+pwr  = 30   # Suppose D is the director. pwr controls which angles around D,
+            # i.e. < -d..D..d> are considered in alignment. Larger pwr values
+            # mean less angles are included. See graph of function focus to
+            # understand the impact of changes to pwr
+
 
 
 def soften_mask(binary_mask, blur_size=15, sigma=5):
@@ -147,12 +154,49 @@ def rand_angle(mu, sigma):
         angle -= 180
     return angle
 
+def focus(M, p):
+    return abs(math.cos(math.radians(M))) ** p
+
 def calculate_order_parameter_for_direction(angles_deg, direction_deg):
-    
+    """
+    For each input fiber angle (degrees), calculate the Chebyshev order parameter
+    relative to a given principal direction (degrees).
+    """
+    # Compute relative double angles (modulo 180 because fibers are axis-aligned)
     delta = np.deg2rad(angles_deg - direction_deg)
-    cos2theta = np.cos(2*delta) 
-    S=np.mean(cos2theta)
+    cos2theta = np.cos(2 * delta)
+    S = np.mean(cos2theta)  # This is the 2D "Chebyshev orientation parameter"
     return S
+
+
+def peak_calculate_order_parameter_for_direction(angles_deg, direction_deg):
+    """
+    For each input fiber angle (degrees), calculate the Chebyshev order parameter
+    relative to a given principal direction (degrees). Apply filter focus to ensure
+    only nearby angles contribute to the order parameter.
+    """
+    # Compute relative double angles (modulo 180 because fibers are axis-aligned)
+    cc = []
+    delta_deg = angles_deg - direction_deg
+    for angle in delta_deg:
+        a = np.cos(2*angle*math.pi/180)*focus(angle, pwr)
+        cc.append(a)
+    S = np.mean(cc)  # This is the 2D "Hermans orientation parameter"
+    return S
+
+
+def peak_scan_all_directions(angles_deg):
+    """
+    Scan all 0...179 degrees and calculate filtered order parameter for each direction.
+    """
+    
+    directions = np.arange(0, 180)
+    S_values = []
+    for direction in directions:
+        S = peak_calculate_order_parameter_for_direction(angles_deg, direction)
+        S_values.append(S)
+    return directions, np.array(S_values)
+
 
 def scan_all_directions(angles_deg):
     
@@ -232,6 +276,11 @@ async def button_clicked(params: Parameters):
     currentAxis.add_patch(plt.Rectangle((0 ,0), 1, 1, facecolor=(0 ,0 ,0) ,transform=currentAxis.transAxes, zorder=-1))
     
     primary_direction, Chybishev = scan_all_directions(all_angles)
+    
+    # Scan all principal directions for peaks
+    directions, S_values = peak_scan_all_directions(all_angles)
+    
+    plt.plot(directions, S_values, color="red")
     
     # Add text at specific coordinates
     plt.text(0, -4, f"Whipping Factor: {whipping_factor:.2f}\nChybishev: {Chybishev:.2f}\nDirector: {primary_direction:.2f}" , fontsize=10, color="gray", ha="left", va="top")
