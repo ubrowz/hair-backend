@@ -285,7 +285,11 @@ async def button_clicked(params: Parameters):
     plt.plot(directions, S_values, color="red")
     
     # Add text at specific coordinates
-    plt.text(0, -4, f"Whipping Factor: {whipping_factor:.2f}\nChybishev: {Chybishev:.2f}\nDirector: {primary_direction:.2f}" , fontsize=10, color="gray", ha="left", va="top")
+    plt.text(0, -4, f"\nWhipping Factor: {whipping_factor:.2f}\nChybishev: {Chybishev:.2f}" , fontsize=10, color="gray", ha="left", va="top")
+    
+    plt.text(0,-1,"0°", fontsize = 8, color="red", va="top")
+    plt.text(canvas_width/2, -1,"90°", fontsize=8,color="red", ha="center",va="top")
+    plt.text(canvas_width,-1,"180°", fontsize=8, color="red", ha="right",va="top")
     
     buf = io.BytesIO()
     
