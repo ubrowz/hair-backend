@@ -280,6 +280,8 @@ async def button_clicked(params: Parameters):
     # Scan all principal directions for peaks
     directions, S_values = peak_scan_all_directions(all_angles)
     
+    S_values = S_values*canvas_height
+    
     plt.plot(directions, S_values, color="red")
     
     # Add text at specific coordinates
