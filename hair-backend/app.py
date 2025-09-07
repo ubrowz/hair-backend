@@ -308,10 +308,10 @@ async def field_calc(params: Parameters):
     rod_diameter = params.param4
     rod_length = params.param5
     zslice = params.param6
-    dummy1 = params.param7
+    ax_choice = int(params.param7)
     dummy2 = params.param8
     
-    print("BACKEND REACHED!!")
+    print("plot choice:", ax_choice)
 
 
 
@@ -391,68 +391,69 @@ async def field_calc(params: Parameters):
     Ex_side, Ez_side   = electric_field_tube(nozzle, V_nozzle, V_rod, rod_diameter/2.0, collector_geometry)
     
     # ---- Plotting ----
-    fig, axs = plt.subplots(1, 3, figsize=(15, 6))
+    fig, axs = plt.subplots(1, 1, figsize=(15, 6))
     
-    # Front view (circle rod, x–z)
-    axs[0].set_aspect(1)
-    axs[0].streamplot(X, Z, Ex_front, Ez_front, density=1.2, color="blue")
-    axs[0].plot(nozzle[0], nozzle[1], 'ko', markersize=10, label="Nozzle")
-    circle = plt.Circle(collector, rod_diameter/2.0, color='red', fill=False, linewidth=2, label="Rod (front view)")
-    axs[0].add_artist(circle)
-    axs[0].set_title("Front view (x–z)")
-    axs[0].set_xlim(-rod_length/2 - 1, 1+rod_length/2)
-    axs[0].set_ylim(0, collector_z + distance_nozzle_rod)
-    axs[0].legend()
+    if ax_choice == 1:
     
-    # Side view (rectangle rod, z–axis vertical)
-    axs[1].set_aspect(1)
-    axs[1].streamplot(X, Z, Ex_side, Ez_side, density=1.2, color="blue")
-    axs[1].plot(nozzle[0], nozzle[1], 'ko', markersize=10, label="Nozzle")
-    rect = plt.Rectangle((collector_geometry['center'][0] - collector_geometry['width']/2,
-                          collector_geometry['center'][1] - collector_geometry['height']/2),
-                          collector_geometry['width'], collector_geometry['height'],
-                          fill=True, color='red', linewidth=3, label="Rod (side view)")
-    axs[1].add_patch(rect)
-    axs[1].set_title("Side view (z–y)")
-    axs[1].set_xlim(-rod_length/2 - 1, 1+rod_length/2)
-    axs[1].set_ylim(0, collector_z + distance_nozzle_rod)
-    axs[1].legend()
+        # Front view (circle rod, x–z)
+        axs.set_aspect(1)
+        axs.streamplot(X, Z, Ex_front, Ez_front, density=1.2, color="blue")
+        axs.plot(nozzle[0], nozzle[1], 'ko', markersize=10, label="Nozzle")
+        circle = plt.Circle(collector, rod_diameter/2.0, color='red', fill=False, linewidth=2, label="Rod (front view)")
+        axs.add_artist(circle)
+        axs.set_title("Front view (x–z)")
+        axs.set_xlim(-rod_length/2 - 1, 1+rod_length/2)
+        axs.set_ylim(0, collector_z + distance_nozzle_rod)
+        axs.legend()
     
-    # Top view (slice at z halfway)
-    #z_slice = collector_z + distance_nozzle_rod/8
-    z_slice = collector_z + zslice
+    if ax_choice == 2:
+        # Side view (rectangle rod, z–axis vertical)
+        axs.set_aspect(1)
+        axs.streamplot(X, Z, Ex_side, Ez_side, density=1.2, color="blue")
+        axs.plot(nozzle[0], nozzle[1], 'ko', markersize=10, label="Nozzle")
+        rect = plt.Rectangle((collector_geometry['center'][0] - collector_geometry['width']/2,
+                              collector_geometry['center'][1] - collector_geometry['height']/2),
+                              collector_geometry['width'], collector_geometry['height'],
+                              fill=True, color='red', linewidth=3, label="Rod (side view)")
+        axs.add_patch(rect)
+        axs.set_title("Side view (z–y)")
+        axs.set_xlim(-rod_length/2 - 1, 1+rod_length/2)
+        axs.set_ylim(0, collector_z + distance_nozzle_rod)
+        axs.legend()
     
-    X_top, Y_top, Ex_top, Ey_top = electric_field_top(V_nozzle, V_rod,
-                                                      nozzle_z=collector_z+distance_nozzle_rod,
-                                                      rod_z=collector_z,
-                                                      rod_length=rod_length,
-                                                      rod_diameter=rod_diameter,
-                                                      z_slice=z_slice)
-    axs[2].set_aspect(1)
-    axs[2].streamplot(X_top, Y_top, Ex_top, Ey_top, density=1.2, color="blue")
-    axs[2].plot(0, 0, 'ko', markersize=10, label="Nozzle projection")
-    rect_top = plt.Rectangle((-rod_length/2, -rod_diameter/2),
-                             rod_length, rod_diameter,
-                             fill=True, color='red', label="Rod (top view)")
-    axs[2].add_patch(rect_top)
-    axs[2].set_title(f"Top view (x–y) at z ≈ {z_slice:.1f}")
-    axs[2].set_xlim(-rod_length/2 - 1, 1+rod_length/2)
-    axs[2].set_ylim(-rod_length/2 - 1, 1+rod_length/2)
-    axs[2].legend()
+    if ax_choice == 3:
+        
+        # Top view (slice at z halfway)
+        #z_slice = collector_z + distance_nozzle_rod/8
+        z_slice = collector_z + zslice
+        
+        X_top, Y_top, Ex_top, Ey_top = electric_field_top(V_nozzle, V_rod,
+                                                          nozzle_z=collector_z+distance_nozzle_rod,
+                                                          rod_z=collector_z,
+                                                          rod_length=rod_length,
+                                                          rod_diameter=rod_diameter,
+                                                          z_slice=z_slice)
+        axs.set_aspect(1)
+        axs.streamplot(X_top, Y_top, Ex_top, Ey_top, density=1.2, color="blue")
+        axs.plot(0, 0, 'ko', markersize=10, label="Nozzle projection")
+        rect_top = plt.Rectangle((-rod_length/2, -rod_diameter/2),
+                                 rod_length, rod_diameter,
+                                 fill=True, color='red', label="Rod (top view)")
+        axs.add_patch(rect_top)
+        axs.set_title(f"Top view (x–y) at z ≈ {z_slice:.1f}")
+        axs.set_xlim(-rod_length/2 - 1, 1+rod_length/2)
+        axs.set_ylim(-rod_length/2 - 1, 1+rod_length/2)
+        axs.legend()
     
     plt.tight_layout()
-    #plt.show()
+    
     buf = io.BytesIO()
     
     plt.savefig(buf, format="png")
-    # Check buffer size for debugging
-    print(f"Buffer size: {len(buf.getvalue())} bytes")
 
     buf.seek(0)
 
     plt.close(fig)
-    
-    print("BACKEND END REACHED")
 
     return StreamingResponse(buf, media_type="image/png")
 
