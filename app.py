@@ -310,16 +310,13 @@ async def field_calc(params: Parameters):
     zslice = params.param6
     dummy1 = params.param7
     dummy2 = params.param8
+    
+    print("BACKEND REACHED!!")
 
 
 
-    # ==== PARAMETERS YOU CAN EASILY CHANGE ====
-    # V_nozzle = 10.0             # kV
-    # V_rod = 0.1                 # kV
-    # distance_nozzle_rod = 10.0  # vertical distance between nozzle and rod
-    # rod_diameter = 0.3          # diameter of rod (in same units as distance)
-    # rod_length = 6.5            # length of rod (horizontal, along x-axis)
     collector_z = 2.0           # vertical position (z-axis) of rod center
+
     # ===========================================
     
     # Grid for visualization
@@ -448,9 +445,14 @@ async def field_calc(params: Parameters):
     buf = io.BytesIO()
     
     plt.savefig(buf, format="png")
+    # Check buffer size for debugging
+    print(f"Buffer size: {len(buf.getvalue())} bytes")
+
     buf.seek(0)
 
-    plt.close()
+    plt.close(fig)
+    
+    print("BACKEND END REACHED")
 
     return StreamingResponse(buf, media_type="image/png")
 
