@@ -603,11 +603,25 @@ async def multifield_calc(params: Parameters):
         # Side view (rectangle rod, z–axis vertical)
 
         axs.streamplot(Y_side, Z_side, Ey_side, Ez_side, density=1.2, color="blue")
+
+        # plot nozzle projections: only those nozzles whose x_n are near x_slice will appear centered at y=0;
+        # but to visualize projection of all nozzles onto this plane, you can plot them at y = 0 with a marker if desired:
+        x_slice = 0.0
+        for (x_n, z_n) in nozzle_positions:
+            # projection of nozzle onto x=x_slice plane is at y=0; its apparent strength depends on distance (x_n - x_slice)
+            if abs(x_n - x_slice) < spacing/2:   # optionally only mark near ones
+                axs.plot(0.0, z_n, 'ko', markersize=8)
+    
         
         # rod rectangle
-        rect = plt.Rectangle((-rod_length/2, collector_z - rod_diameter/2),
-                             rod_length, rod_diameter,
-                             fill=True, color='red', linewidth=3)
+        rect = plt.Rectangle((collector_geometry['center'][0] - collector_geometry['width']/2,
+                              collector_geometry['center'][1] - collector_geometry['height']/2),
+                              collector_geometry['width'], collector_geometry['height'],
+                              fill=True, color='red', linewidth=3, label="Rod (side view)")
+
+        # rect = plt.Rectangle((-rod_length/2, collector_z - rod_diameter/2),
+        #                      rod_length, rod_diameter,
+        #                      fill=True, color='red', linewidth=3)
         axs.add_patch(rect)
         axs.set_title("Side view (z–y)")
         axs.set_xlim(-rod_length/2 - 1, 1+rod_length/2)
