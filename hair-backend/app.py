@@ -551,7 +551,7 @@ async def multifield_calc(params: Parameters):
 
         V = np.zeros_like(X, dtype=float)
         for nozzle_pos in nozzles:
-            r_nozzle = np.sqrt((Y - nozzle_pos[0])**2 + X**2 + (z_slice - nozzle_z)**2)
+            r_nozzle = np.sqrt((Y - nozzle_pos[0])**2 + (X - nozzle_pos[0])**2 + (z_slice - nozzle_z)**2)
             V += V_nozzle / (r_nozzle + 1e-6)
 
         half_len = rod_length/2
