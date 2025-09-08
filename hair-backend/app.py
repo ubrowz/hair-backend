@@ -555,10 +555,10 @@ async def multifield_calc(params: Parameters):
             V += V_nozzle / (r_nozzle + 1e-6)
 
         half_len = rod_length/2
-#        dx = np.maximum(0, np.abs(X) - half_len)
-        dx = X
-#        dy = Y
-        dy = np.maximum(0, np.abs(Y) - half_len)
+        dx = np.maximum(0, np.abs(X) - half_len)
+#        dx = X
+        dy = Y
+#        dy = np.maximum(0, np.abs(Y) - half_len)
         dz = z_slice - rod_z
         r_rod = np.sqrt(dx**2 + dy**2 + dz**2 + (rod_diameter/2)**2)
         V += V_collector / (r_rod + 1e-6)
