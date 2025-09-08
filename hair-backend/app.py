@@ -464,6 +464,14 @@ async def multifield_calc(params: Parameters):
     dummy2 = params.param8
 
     collector_z = 2.0  # vertical position (z-axis) of rod center
+    
+    # Collector geometry (side view: rectangle)
+    collector_geometry = {
+        'center': (0, collector_z),
+        'width': rod_length,
+        'height': rod_diameter
+    }
+
 
     # ===========================================
     # Grid for front view (x–z)
@@ -503,7 +511,7 @@ async def multifield_calc(params: Parameters):
         return Ex, Ez
 
     # ---- Side view field (y–z plane at fixed x) ----
-    def electric_field_side(nozzles, V_nozzle, V_collector,
+    def electric_field_side_old(nozzles, V_nozzle, V_collector,
                             rod_length, rod_diameter,
                             collector_z, x_slice=0.0):
         y = np.linspace(-rod_length/2 - 1, rod_length/2 + 1, 200)
@@ -524,6 +532,28 @@ async def multifield_calc(params: Parameters):
         dz = z[1] - z[0]
         Ey, Ez = np.gradient(-V, dy, dz)
         return y, z, Ey, Ez
+    
+    def electric_field_side(nozzles, V_nozzle, V_collector, tube_radius, collector_geom):
+        # Side view grid (y–z plane)
+        y = np.linspace(-collector_geom['width']/2 - 1,
+                         collector_geom['width']/2 + 1, 200)
+        z = np.linspace(0, collector_geom['center'][1] + distance_nozzle_rod, 400)
+        Y, Z = np.meshgrid(y, z)
+    
+        V = np.zeros_like(Y, dtype=float)
+        for nozzle_pos in nozzles:
+            # In side view, all nozzles are projected at y=0
+            r_nozzle = np.sqrt(Y**2 + (Z - nozzle_pos[1])**2)
+            V += V_nozzle / (r_nozzle + 1e-6)
+    
+        r_collector = distance_to_rectangle(Y, Z,
+                                            collector_geom['center'],
+                                            collector_geom['width'],
+                                            collector_geom['height'])
+        V += V_collector / (np.sqrt(r_collector**2 + 1e-10))
+    
+        Ey, Ez = np.gradient(-V)
+        return Y, Z, Ey, Ez
 
     # ---- Top view field (x–y plane at fixed z) ----
     def electric_field_top(nozzles, V_nozzle, V_collector,
@@ -549,6 +579,10 @@ async def multifield_calc(params: Parameters):
 
     # ---- Compute fields ----
     Ex_front, Ez_front = electric_field_front(nozzle_positions, collector, V_nozzle, V_rod, rod_diameter/2.0)
+    Y_side, Z_side, Ey_side, Ez_side = electric_field_side(nozzle_positions,
+                                                       V_nozzle, V_rod,
+                                                       rod_diameter/2.0,
+                                                       collector_geometry)
 
     # ---- Plotting ----
     fig, axs = plt.subplots(1, 1, figsize=(15, 6))
@@ -566,32 +600,15 @@ async def multifield_calc(params: Parameters):
 
     if ax_choice == 2:  # side
     
+        # Side view (rectangle rod, z–axis vertical)
 
-        y, z = np.linspace(-rod_length/2 - 1, rod_length/2 + 1, 200), np.linspace(0, collector_z + distance_nozzle_rod, 400)
-        Y, Zs = np.meshgrid(y, z)
-    
-        V = np.zeros_like(Y, dtype=float)
-        for x_n, z_n in nozzle_positions:
-            r = np.sqrt((0.0 - x_n)**2 + (Y - 0.0)**2 + (Zs - z_n)**2)
-            V += V_nozzle / (r + 1e-6)
-    
-        r_col = distance_to_rectangle(Y, Zs, center=(0, collector_z),
-                                      width=rod_diameter, height=rod_length)
-        V += V_rod / (np.sqrt(r_col**2 + 1e-10))
-    
-        dy = y[1] - y[0]
-        dz = z[1] - z[0]
-        Ey, Ez = np.gradient(-V, dz, dy)  # note order: (axis0=z, axis1=y)
-    
-        axs.set_aspect(1)
-        axs.streamplot(Y, Zs, Ey, Ez, density=1.2, color="blue")
-        rect = plt.Rectangle((-rod_diameter/2, collector_z - rod_length/2),
-                             rod_diameter, rod_length,
-                             fill=True, color='red', linewidth=2)
+        axs.streamplot(Y_side, Z_side, Ey_side, Ez_side, density=1.2, color="blue")
+        
+        # rod rectangle
+        rect = plt.Rectangle((-rod_length/2, collector_z - rod_diameter/2),
+                             rod_length, rod_diameter,
+                             fill=True, color='red', linewidth=3)
         axs.add_patch(rect)
-        axs.set_title("Side view (y–z) at x=0")
-        axs.set_xlim(-rod_length/2 - 1, rod_length/2 + 1)
-        axs.set_ylim(0, collector_z + distance_nozzle_rod)    
 
     if ax_choice == 3:  # top
         z_slice = collector_z + zslice
