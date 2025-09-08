@@ -571,8 +571,16 @@ async def multifield_calc(params: Parameters):
         X_side, Z_side, Ex_front, Ez_front = electric_field_front(nozzle_positions, collector, V_nozzle, V_rod, rod_diameter/2.0)
         axs.set_aspect(1)
         axs.streamplot(X_side, Z_side, Ex_front, Ez_front, density=1.2, color="blue")
-        for nozzle_pos in nozzle_positions:
-            axs.plot(nozzle_pos[0], nozzle_pos[1], 'ko', markersize=8)
+
+        # plot nozzle projections: only those nozzles whose x_n are near x_slice will appear centered at y=0;
+        # but to visualize projection of all nozzles onto this plane, you can plot them at y = 0 with a marker if desired:
+        x_slice = 0.0
+        for (x_n, z_n) in nozzle_positions:
+            # projection of nozzle onto x=x_slice plane is at y=0; its apparent strength depends on distance (x_n - x_slice)
+            if abs(x_n - x_slice) < spacing/2:   # optionally only mark near ones
+                axs.plot(0.0, z_n, 'ko', markersize=8)
+
+
         circle = plt.Circle(collector, rod_diameter/2.0, color='red', fill=False, linewidth=2)
         axs.add_artist(circle)
         axs.set_title("Front view (x–z)")
@@ -587,14 +595,9 @@ async def multifield_calc(params: Parameters):
         # Side view (rectangle rod, z–axis vertical)
         axs.set_aspect(1)
         axs.streamplot(Y_side, Z_side, Ey_side, Ez_side, density=1.2, color="blue")
+        for nozzle_pos in nozzle_positions:
+            axs.plot(nozzle_pos[0], nozzle_pos[1], 'ko', markersize=8)
 
-        # plot nozzle projections: only those nozzles whose x_n are near x_slice will appear centered at y=0;
-        # but to visualize projection of all nozzles onto this plane, you can plot them at y = 0 with a marker if desired:
-        x_slice = 0.0
-        for (x_n, z_n) in nozzle_positions:
-            # projection of nozzle onto x=x_slice plane is at y=0; its apparent strength depends on distance (x_n - x_slice)
-            if abs(x_n - x_slice) < spacing/2:   # optionally only mark near ones
-                axs.plot(0.0, z_n, 'ko', markersize=8)
     
         
         # rod rectangle
