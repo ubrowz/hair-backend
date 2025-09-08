@@ -565,17 +565,33 @@ async def multifield_calc(params: Parameters):
         axs.set_ylim(0, collector_z + distance_nozzle_rod)
 
     if ax_choice == 2:  # side
-        y, z, Ey, Ez = electric_field_side(nozzle_positions, V_nozzle, V_rod,
-                                           rod_length, rod_diameter, collector_z)
+    
+
+        y, z = np.linspace(-rod_length/2 - 1, rod_length/2 + 1, 200), np.linspace(0, collector_z + distance_nozzle_rod, 400)
+        Y, Zs = np.meshgrid(y, z)
+    
+        V = np.zeros_like(Y, dtype=float)
+        for x_n, z_n in nozzle_positions:
+            r = np.sqrt((0.0 - x_n)**2 + (Y - 0.0)**2 + (Zs - z_n)**2)
+            V += V_nozzle / (r + 1e-6)
+    
+        r_col = distance_to_rectangle(Y, Zs, center=(0, collector_z),
+                                      width=rod_diameter, height=rod_length)
+        V += V_rod / (np.sqrt(r_col**2 + 1e-10))
+    
+        dy = y[1] - y[0]
+        dz = z[1] - z[0]
+        Ey, Ez = np.gradient(-V, dz, dy)  # note order: (axis0=z, axis1=y)
+    
         axs.set_aspect(1)
-        axs.streamplot(y, z, Ey.T, Ez.T, density=1.2, color="blue")
+        axs.streamplot(Y, Zs, Ey, Ez, density=1.2, color="blue")
         rect = plt.Rectangle((-rod_diameter/2, collector_z - rod_length/2),
                              rod_diameter, rod_length,
                              fill=True, color='red', linewidth=2)
         axs.add_patch(rect)
         axs.set_title("Side view (y–z) at x=0")
         axs.set_xlim(-rod_length/2 - 1, rod_length/2 + 1)
-        axs.set_ylim(0, collector_z + distance_nozzle_rod)
+        axs.set_ylim(0, collector_z + distance_nozzle_rod)    
 
     if ax_choice == 3:  # top
         z_slice = collector_z + zslice
