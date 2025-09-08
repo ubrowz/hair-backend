@@ -601,7 +601,7 @@ async def multifield_calc(params: Parameters):
     if ax_choice == 2:  # side
     
         # Side view (rectangle rod, z–axis vertical)
-
+        axs.set_aspect(1)
         axs.streamplot(Y_side, Z_side, Ey_side, Ez_side, density=1.2, color="blue")
 
         # plot nozzle projections: only those nozzles whose x_n are near x_slice will appear centered at y=0;
