@@ -609,6 +609,10 @@ async def multifield_calc(params: Parameters):
                              rod_length, rod_diameter,
                              fill=True, color='red', linewidth=3)
         axs.add_patch(rect)
+        axs.set_title("Side view (z–y)")
+        axs.set_xlim(-rod_length/2 - 1, 1+rod_length/2)
+        axs.set_ylim(0, collector_z + distance_nozzle_rod)
+        axs.legend()
 
     if ax_choice == 3:  # top
         z_slice = collector_z + zslice
