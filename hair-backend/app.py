@@ -482,17 +482,19 @@ async def multifield_calc(params: Parameters):
 
     # Multiple nozzle setup along x-axis
     n_nozzles = 5
-    spacing = 1.0
+    spacing = 1.5
     nozzle_z = collector_z + distance_nozzle_rod
-    nozzle_positions = [(y0, nozzle_z) for y0 in 
-                        np.linspace(-(n_nozzles-1)/2*spacing,
-                                    (n_nozzles-1)/2*spacing,
-                                    n_nozzles)]
-    # nozzle_positions = [(0, y0, nozzle_z) for y0 in 
+    # nozzle_positions = [(y0, nozzle_z) for y0 in 
     #                     np.linspace(-(n_nozzles-1)/2*spacing,
     #                                 (n_nozzles-1)/2*spacing,
-    #                                 n_nozzles)] 
-    # # Collector
+    #                                 n_nozzles)]
+    nozzle_positions = [(y0, nozzle_z) for y0 in 
+                        np.linspace(0,
+                                    (n_nozzles-1)*spacing,
+                                    n_nozzles)]
+
+
+    # Collector
     collector = (0, collector_z)
 
     # ---- Helper: distance to rectangle ----
@@ -561,8 +563,6 @@ async def multifield_calc(params: Parameters):
 
         Ex, Ey = np.gradient(-V)
         return X, Y, Ex, Ey
-
-    # ---- Compute fields ----
 
     # ---- Plotting ----
     fig, axs = plt.subplots(1, 1, figsize=(15, 6))
