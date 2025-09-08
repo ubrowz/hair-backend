@@ -310,10 +310,6 @@ async def field_calc(params: Parameters):
     zslice = params.param6
     ax_choice = int(params.param7)
     dummy2 = params.param8
-    
-    print("plot choice:", ax_choice)
-
-
 
     collector_z = 2.0           # vertical position (z-axis) of rod center
 
@@ -424,7 +420,6 @@ async def field_calc(params: Parameters):
     if ax_choice == 3:
         
         # Top view (slice at z halfway)
-        #z_slice = collector_z + distance_nozzle_rod/8
         z_slice = collector_z + zslice
         
         X_top, Y_top, Ex_top, Ey_top = electric_field_top(V_nozzle, V_rod,
@@ -453,6 +448,159 @@ async def field_calc(params: Parameters):
 
     buf.seek(0)
 
+    plt.close(fig)
+
+    return StreamingResponse(buf, media_type="image/png")
+
+
+@app.post("/multiflds/")
+async def multifield_calc(params: Parameters):
+    V_nozzle = params.param1
+    V_rod = params.param2
+    distance_nozzle_rod = params.param3
+    rod_diameter = params.param4
+    rod_length = params.param5
+    zslice = params.param6
+    ax_choice = int(params.param7)
+    dummy2 = params.param8
+
+    collector_z = 2.0           # vertical position (z-axis) of rod center
+
+    # ===========================================
+    # Grid for visualization
+    x = np.linspace(-rod_length/2 - 1, 1+rod_length/2, 200)
+    z = np.linspace(0, collector_z + distance_nozzle_rod, 400)
+    X, Z = np.meshgrid(x, z)
+
+    # Multiple nozzle setup
+    n_nozzles = 5                 # number of nozzles
+    spacing = 1.0                 # spacing along x-axis
+    nozzle_z = collector_z + distance_nozzle_rod
+    nozzle_positions = [(x0, nozzle_z) for x0 in 
+                        np.linspace(-(n_nozzles-1)/2*spacing,
+                                    (n_nozzles-1)/2*spacing,
+                                    n_nozzles)]
+
+    # Collector
+    collector = (0, collector_z)
+
+    # Collector geometry (side view: rectangle)
+    collector_geometry = {
+        'center': (0, collector_z),
+        'width': rod_length,
+        'height': rod_diameter
+    }
+
+    # ---- Distance helper for rectangle geometry ----
+    def distance_to_rectangle(X, Y, center, width, height):
+        cx, cy = center
+        half_w, half_h = width/2, height/2
+        dx = np.maximum(0, np.maximum(cx - half_w - X, X - (cx + half_w)))
+        dy = np.maximum(0, np.maximum(cy - half_h - Y, Y - (cy + half_h)))
+        return np.sqrt(dx**2 + dy**2)
+
+    # ---- Electric field models ----
+    def electric_field_circle(nozzles, collector_pos, V_nozzle, V_collector, tube_radius):
+        V = np.zeros_like(X, dtype=float)
+        for nozzle_pos in nozzles:
+            r_nozzle = np.sqrt((X - nozzle_pos[0])**2 + (Z - nozzle_pos[1])**2)
+            V += V_nozzle / (r_nozzle + 1e-6)
+
+        r_collector = np.sqrt((X - collector_pos[0])**2 + (Z - collector_pos[1])**2)
+        V += V_collector / (np.sqrt(r_collector**2 + tube_radius**2))
+        Ex, Ez = np.gradient(-V)
+        return Ex, Ez
+
+    def electric_field_tube(nozzles, V_nozzle, V_collector, tube_radius, collector_geom):
+        V = np.zeros_like(X, dtype=float)
+        for nozzle_pos in nozzles:
+            r_nozzle = np.sqrt((X - nozzle_pos[0])**2 + (Z - nozzle_pos[1])**2)
+            V += V_nozzle / (r_nozzle + 1e-6)
+
+        r_collector = distance_to_rectangle(X, Z, collector_geom['center'],
+                                            collector_geom['width'],
+                                            collector_geom['height'])
+        V += V_collector / (np.sqrt(r_collector**2 + 1e-10))
+        Ex, Ez = np.gradient(-V)
+        return Ex, Ez
+
+    def electric_field_top(nozzles, V_nozzle, V_collector, nozzle_z, rod_z, rod_length, rod_diameter, z_slice):
+        x = np.linspace(-rod_length/2 - 1, 1+rod_length/2, 200)
+        y = np.linspace(-rod_length/2 - 1, 1+rod_length/2, 200)
+        X, Y = np.meshgrid(x, y)
+
+        V = np.zeros_like(X, dtype=float)
+        for nozzle_pos in nozzles:
+            r_nozzle = np.sqrt((X - nozzle_pos[0])**2 + Y**2 + (z_slice - nozzle_z)**2)
+            V += V_nozzle / (r_nozzle + 1e-6)
+
+        half_len = rod_length/2
+        dx = np.maximum(0, np.abs(X) - half_len)
+        dy = Y
+        dz = z_slice - rod_z
+        r_rod = np.sqrt(dx**2 + dy**2 + dz**2 + (rod_diameter/2)**2)
+        V += V_collector / (r_rod + 1e-6)
+
+        Ex, Ey = np.gradient(-V)
+        return X, Y, Ex, Ey
+
+    # ---- Compute fields ----
+    Ex_front, Ez_front = electric_field_circle(nozzle_positions, collector, V_nozzle, V_rod, rod_diameter/2.0)
+    Ex_side, Ez_side   = electric_field_tube(nozzle_positions, V_nozzle, V_rod, rod_diameter/2.0, collector_geometry)
+
+    # ---- Plotting ----
+    fig, axs = plt.subplots(1, 1, figsize=(15, 6))
+
+    if ax_choice == 1:
+        axs.set_aspect(1)
+        axs.streamplot(X, Z, Ex_front, Ez_front, density=1.2, color="blue")
+        for nozzle_pos in nozzle_positions:
+            axs.plot(nozzle_pos[0], nozzle_pos[1], 'ko', markersize=8)
+        circle = plt.Circle(collector, rod_diameter/2.0, color='red', fill=False, linewidth=2)
+        axs.add_artist(circle)
+        axs.set_title("Front view (x–z)")
+        axs.set_xlim(-rod_length/2 - 1, 1+rod_length/2)
+        axs.set_ylim(0, collector_z + distance_nozzle_rod)
+
+    if ax_choice == 2:
+        axs.set_aspect(1)
+        axs.streamplot(X, Z, Ex_side, Ez_side, density=1.2, color="blue")
+        for nozzle_pos in nozzle_positions:
+            axs.plot(nozzle_pos[0], nozzle_pos[1], 'ko', markersize=8)
+        rect = plt.Rectangle((collector_geometry['center'][0] - collector_geometry['width']/2,
+                              collector_geometry['center'][1] - collector_geometry['height']/2),
+                              collector_geometry['width'], collector_geometry['height'],
+                              fill=True, color='red', linewidth=3)
+        axs.add_patch(rect)
+        axs.set_title("Side view (z–y)")
+        axs.set_xlim(-rod_length/2 - 1, 1+rod_length/2)
+        axs.set_ylim(0, collector_z + distance_nozzle_rod)
+
+    if ax_choice == 3:
+        z_slice = collector_z + zslice
+        X_top, Y_top, Ex_top, Ey_top = electric_field_top(nozzle_positions, V_nozzle, V_rod,
+                                                          nozzle_z=nozzle_z,
+                                                          rod_z=collector_z,
+                                                          rod_length=rod_length,
+                                                          rod_diameter=rod_diameter,
+                                                          z_slice=z_slice)
+        axs.set_aspect(1)
+        axs.streamplot(X_top, Y_top, Ex_top, Ey_top, density=1.2, color="blue")
+        for nozzle_pos in nozzle_positions:
+            axs.plot(nozzle_pos[0], 0, 'ko', markersize=8)  # nozzle projection
+        rect_top = plt.Rectangle((-rod_length/2, -rod_diameter/2),
+                                 rod_length, rod_diameter,
+                                 fill=True, color='red')
+        axs.add_patch(rect_top)
+        axs.set_title(f"Top view (x–y) at z ≈ {z_slice:.1f}")
+        axs.set_xlim(-rod_length/2 - 1, 1+rod_length/2)
+        axs.set_ylim(-rod_length/2 - 1, 1+rod_length/2)
+
+    plt.tight_layout()
+
+    buf = io.BytesIO()
+    plt.savefig(buf, format="png")
+    buf.seek(0)
     plt.close(fig)
 
     return StreamingResponse(buf, media_type="image/png")
