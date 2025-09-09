@@ -544,21 +544,19 @@ async def multifield_calc(params: Parameters):
     # ---- Top view field (x–y plane at fixed z) ----
     def electric_field_top(nozzles, V_nozzle, V_collector,
                            nozzle_z, rod_z, rod_length, rod_diameter, z_slice):
-#        x = np.linspace(-rod_length/2 - 1, rod_length/2 + 1, 200)
-#        y = np.linspace(-rod_length/2 - 1, rod_length/2 + 1, 200)
+        x = np.linspace(-rod_length/2 - 1, rod_length/2 + 1, 200)
+        y = np.linspace(-rod_length/2 - 1, rod_length/2 + 1, 200)
         X, Y = np.meshgrid(x, y)
 
 
         V = np.zeros_like(X, dtype=float)
         for nozzle_pos in nozzles:
-            r_nozzle = np.sqrt((Y - nozzle_pos[0])**2 + (X - nozzle_pos[0])**2 + (z_slice - nozzle_z)**2)
+            r_nozzle = np.sqrt((Y)**2 + (X - nozzle_pos[0])**2 + (z_slice - nozzle_z)**2)
             V += V_nozzle / (r_nozzle + 1e-6)
 
         half_len = rod_length/2
         dx = np.maximum(0, np.abs(X) - half_len)
-#        dx = X
         dy = Y
-#        dy = np.maximum(0, np.abs(Y) - half_len)
         dz = z_slice - rod_z
         r_rod = np.sqrt(dx**2 + dy**2 + dz**2 + (rod_diameter/2)**2)
         V += V_collector / (r_rod + 1e-6)
