@@ -43,7 +43,7 @@ class Parameters(BaseModel):
     param4: float  
     param5: float  
     param6: float  
-    param7: int    
+    param7: float    
     param8: float   
     param9: float
     param10: float
@@ -550,7 +550,7 @@ async def multifield_calc(params: Parameters):
         
         # Contribution from the rod (cylinder along x-axis)
 #        N_seg = 50
-        N_seg = 10
+        N_seg = 50
         xs = np.linspace(-rod_length/2, rod_length/2, N_seg)
         Ex_rod = Ey_rod = Ez_rod = 0.0
         for xi in xs:
@@ -661,7 +661,7 @@ async def multifield_calc(params: Parameters):
     if slice_choice == 0:  # x-z
     
         # Define grid
-        nx, nz = 20, 20  # resolution
+        nx, nz = 200, 200  # resolution
         y0 = y_slice
         
         x_vals = np.linspace(-rod_length/2-2.0, rod_length/2+2.0, nx)
@@ -687,8 +687,9 @@ async def multifield_calc(params: Parameters):
         
         # Plot heatmap of field strength
         fig2, ax2 = plt.subplots(figsize=(7, 5))
+        threshold = params.param18
         
-        threshold = 10  # in your units, e.g. V/m or kV/cm depending on inputs
+#        threshold = 10  # in your units, e.g. V/m or kV/cm depending on inputs
         cmap = plt.cm.plasma
         norm = ThresholdNorm(vmin=0, vmax=threshold, threshold=threshold)
         
@@ -763,7 +764,8 @@ async def multifield_calc(params: Parameters):
         # Plot heatmap of field strength
         fig3, ax3 = plt.subplots(figsize=(6, 6))
         
-        threshold = 10  # adjust units as before
+#        threshold = 10  # adjust units as before
+        threshold = params.param18
         cmap = plt.cm.plasma
         norm = ThresholdNorm(vmin=0, vmax=threshold, threshold=threshold)
         
@@ -840,7 +842,8 @@ async def multifield_calc(params: Parameters):
         # Plot heatmap of field strength
         fig4, ax4 = plt.subplots(figsize=(7, 5))
         
-        threshold = 5
+#        threshold = 5
+        threshold = params.param18
         cmap = plt.cm.plasma
         norm = plt.Normalize(vmin=0, vmax=threshold)
         
