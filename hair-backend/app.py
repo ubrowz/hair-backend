@@ -549,7 +549,8 @@ async def multifield_calc(params: Parameters):
             Ez += V_nozzle * rz / r3
         
         # Contribution from the rod (cylinder along x-axis)
-        N_seg = 50
+#        N_seg = 50
+        N_seg = 10
         xs = np.linspace(-rod_length/2, rod_length/2, N_seg)
         Ex_rod = Ey_rod = Ez_rod = 0.0
         for xi in xs:
@@ -660,7 +661,7 @@ async def multifield_calc(params: Parameters):
     if slice_choice == 0:  # x-z
     
         # Define grid
-        nx, nz = 200, 200  # resolution
+        nx, nz = 20, 20  # resolution
         y0 = y_slice
         
         x_vals = np.linspace(-rod_length/2-2.0, rod_length/2+2.0, nx)
