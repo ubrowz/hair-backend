@@ -722,12 +722,13 @@ async def multifield_calc(params: Parameters):
         ax2.set_xlabel("x")
         ax2.set_ylabel("z")
         ax2.set_title(f"2D field strength and field lines (y={y0:.1f} plane)")
-        plt.tight_layout()
+        plt.tight_layout()        
         buf = io.BytesIO()
-        plt.savefig(buf, format="png")
+        fig2.savefig(buf, format="png")   # safer than plt.savefig
         buf.seek(0)
         plt.close(fig2)
-        print("image succesfully calculated")
+        
+        print("Returning image, size:", buf.getbuffer().nbytes)
 
         return StreamingResponse(buf, media_type="image/png")
      
