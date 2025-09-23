@@ -55,6 +55,7 @@ class Parameters(BaseModel):
     param16: float
     param17: float
     param18: float
+    param19: float
 
 
 layers = 50
