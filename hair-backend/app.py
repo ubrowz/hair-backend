@@ -516,6 +516,8 @@ async def multifield_calc(params: Parameters):
     threshold = params.param18
     slice_choice = int(params.param19)
     
+    print("slice_choice = ", slice_choice)
+    
     class ThresholdNorm(mcolors.Normalize):
         def __init__(self, vmin=None, vmax=None, threshold=None, clip=False):
             super().__init__(vmin, vmax, clip)
@@ -725,6 +727,7 @@ async def multifield_calc(params: Parameters):
         plt.savefig(buf, format="png")
         buf.seek(0)
         plt.close(fig2)
+        print("image succesfully calculated")
 
         return StreamingResponse(buf, media_type="image/png")
      
