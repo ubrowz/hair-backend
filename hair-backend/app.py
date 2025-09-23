@@ -473,70 +473,8 @@ async def field_calc(params: Parameters):
 @app.post("/multiflds/")
 async def multifield_calc(params: Parameters):
     
-    def parse_config_file(filename: str) -> Parameters:
-        # Map keys in file → dataclass attributes
-        key_map = {
-            "V_nozzle": ("param1", float),
-            "V_rod": ("param2", float),
-            "z_position_rod": ("param3", float),
-            "rod_diameter": ("param4", float),
-            "rod_length": ("param5", float),
-            "distance_nozzle_rod": ("param6", float),
-            "nr_nozzles": ("param7", float),
-            "nozzles_spacing": ("param8", float),
-            "nozzles_center": ("param9", float),
-            "z_slice": ("param10", float),
-            "nozzles_shift": ("param11", float),
-            "V_shields": ("param12", float),
-            "shield_height": ("param13", float),
-            "shield_width": ("param14", float),
-            "shield_spacing": ("param15", float),
-            "x_slice": ("param16", float),
-            "y_slice": ("param17", float),
-            "threshold": ("param18", float),
-            "slice_choice": ("param19", float),
-    
-        }
-    
-        # Read config file
-        lines = Path(filename).read_text().splitlines()
-    
-        params_dict = {}
-        pattern = re.compile(r"(\w+)\s*=\s*'?(.*?)'?$")
-    
-        for line in lines:
-            # strip comments
-            line = line.split("#", 1)[0].strip()
-            if not line:
-                continue
-    
-            match = pattern.match(line)
-            if match:
-                key, raw_value = match.groups()
-                if key in key_map:
-                    attr, caster = key_map[key]
-                    try:
-                        params_dict[attr] = caster(raw_value)
-                    except ValueError:
-                        raise ValueError(f"Invalid value for {key}: {raw_value!r}")
-    
-        # Check for missing values
-        missing = [attr for attr, _ in key_map.values() if attr not in params_dict]
-        if missing:
-            raise ValueError(f"Missing parameters in config file: {missing}")
-    
-        return Parameters(**params_dict)
     
 
-    # Read all settings
-    
-    if len(sys.argv) == 1:
-    #     input_filepath = '' 
-        input_filepath = input("Full path to config file : ")
-    print(input_filepath)
-    
-    params = parse_config_file(input_filepath)
-    
     V_nozzle = params.param1
     V_rod = params.param2
     rod_z = params.param3
