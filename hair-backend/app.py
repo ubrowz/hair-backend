@@ -771,11 +771,22 @@ async def multifield_calc(params: Parameters):
                 E_slice[j, i] = np.sqrt(E[1]**2 + E[2]**2)
                 
         # --- Streamline seeds (nozzles projected onto y–z plane) ---
-        seeds = [(yn, zn) for (xn, yn, zn) in nozzle_positions]
-    
+
+        # Parameters for seeding
+        Nseeds_per_nozzle = 30   # number of streamlines per nozzle
+        seed_radius = 0.2        # spread radius around nozzle tip (adjust units)
+        
+        seeds = []
+        for (xn, yn, zn) in nozzle_positions:
+            angles = np.linspace(0, 2*np.pi, Nseeds_per_nozzle, endpoint=False)
+            for a in angles:
+                ys = yn + seed_radius * np.cos(a)
+                zs = zn + seed_radius * np.sin(a)
+                seeds.append((ys, zs))
+        
         hits = []
         total = 0
-    
+        
         for (ys, zs) in seeds:
             y, z = ys, zs
             for _ in range(2000):  # integrate steps
@@ -793,12 +804,12 @@ async def multifield_calc(params: Parameters):
         
         efficiency = len(hits) / max(1, total)
         print(f"[Metrics] y–z slice capture efficiency: {efficiency:.2f}")
-    
+        
         if hits:
             hit_angles = [np.arctan2(y, z-rod_z) for (y, z) in hits]  # arc density
             hist, bins = np.histogram(hit_angles, bins=12, range=(-np.pi, np.pi))
             print(f"[Metrics] Hit density histogram (angles): {hist.tolist()}")
-    
+        
         
         # Plot heatmap of field strength
         fig3, ax3 = plt.subplots(figsize=(6, 6))
