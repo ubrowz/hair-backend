@@ -795,7 +795,7 @@ async def multifield_calc(params: Parameters):
         print(f"[Metrics] y–z slice capture efficiency: {efficiency:.2f}")
     
         if hits:
-            hit_angles = [np.arctan2(y, z-rod_z, y) for (y, z) in hits]  # arc density
+            hit_angles = [np.arctan2(y, z-rod_z) for (y, z) in hits]  # arc density
             hist, bins = np.histogram(hit_angles, bins=12, range=(-np.pi, np.pi))
             print(f"[Metrics] Hit density histogram (angles): {hist.tolist()}")
     
