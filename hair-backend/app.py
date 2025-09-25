@@ -474,6 +474,72 @@ async def field_calc(params: Parameters):
 @app.post("/multiflds/")
 async def multifield_calc(params: Parameters):
     
+
+    # Electric field (nozzle + rod + plates)
+    # def electric_field_needle(x, y, z):
+        
+    #     # Start with zero field
+    #     Ex, Ey, Ez = 0.0, 0.0, 0.0
+        
+    #     # --- Contribution from each nozzle (finite needle) ---
+    #     N_seg_nozzle = 10
+    #     for (xn, yn, zn) in nozzle_positions:
+    #         # Discretize nozzle as a line in y-direction
+    #         zs = np.linspace(zn, zn + nozzle_length, N_seg_nozzle)
+    #         for zi in zs:
+    #             rx, ry, rz = (x - xn), (y - yn), (z - zi)
+    #             r3 = (rx**2 + ry**2 + rz**2 + 1e-9)**1.5
+    #             Ex += V_nozzle * rx / r3
+    #             Ey += V_nozzle * ry / r3
+    #             Ez += V_nozzle * rz / r3
+        
+    #     # --- Contribution from the rod (cylinder along x-axis) ---
+    #     N_seg = 50
+    #     xs = np.linspace(-rod_length/2, rod_length/2, N_seg)
+    #     Ex_rod = Ey_rod = Ez_rod = 0.0
+    #     for xi in xs:
+    #         r_seg = np.sqrt(((x - xi))**2 + (y)**2 + ((z - rod_z))**2)
+    #         Ex_rod += V_rod * ((x - xi)) / (r_seg**3 + 1e-9)
+    #         Ey_rod += V_rod * (y) / (r_seg**3 + 1e-9)
+    #         Ez_rod += V_rod * ((z - rod_z)) / (r_seg**3 + 1e-9)
+            
+    #     # --- Contribution from plates ---
+    #     def plate_field(x, y, z, plate_center, V_plate):
+    #         xp, yp, zp = plate_center
+    #         Ny, Nz = 10, 10  # discretization resolution
+    #         ys = np.linspace(yp - plate_height/2, yp + plate_height/2, Ny)
+    #         zs = np.linspace(zp - plate_width/2, zp + plate_width/2, Nz)
+    #         Ex_p, Ey_p, Ez_p = 0.0, 0.0, 0.0
+    #         for yi in ys:
+    #             for zi in zs:
+    #                 rx, ry, rz = (x - xp), (y - yi), (z - zi)
+    #                 r3 = (rx**2 + ry**2 + rz**2 + 1e-9)**1.5
+    #                 Ex_p += V_plate * rx / r3
+    #                 Ey_p += V_plate * ry / r3
+    #                 Ez_p += V_plate * rz / r3
+    #         return Ex_p, Ey_p, Ez_p
+       
+    #     plate1_center = plate1_position[0]
+    #     plate2_center = plate2_position[0]
+
+    #     Ex_p1 = 0.0
+    #     Ex_p2 = 0.0
+    #     Ey_p1 = 0.0
+    #     Ey_p2 = 0.0
+    #     Ez_p1 = 0.0
+    #     Ez_p2 = 0.0
+    
+    #     if (plate_height != 0.0) and (plate_width != 0.0):    
+    #         Ex_p1, Ey_p1, Ez_p1 = plate_field(x, y, z, plate1_center, V_plate1)
+    #         Ex_p2, Ey_p2, Ez_p2 = plate_field(x, y, z, plate2_center, V_plate2)
+    
+    #     # --- Sum all contributions ---
+    #     return np.array([
+    #         Ex + Ex_rod + Ex_p1 + Ex_p2,
+    #         Ey + Ey_rod + Ey_p1 + Ey_p2,
+    #         Ez + Ez_rod + Ez_p1 + Ez_p2
+    #     ])
+    
     
 
     V_nozzle = params.param1
@@ -516,7 +582,7 @@ async def multifield_calc(params: Parameters):
     threshold = params.param18
     slice_choice = int(params.param19)
     
-    print("slice_choice = ", slice_choice)
+#    print("slice_choice = ", slice_choice)
     
     class ThresholdNorm(mcolors.Normalize):
         def __init__(self, vmin=None, vmax=None, threshold=None, clip=False):
@@ -597,63 +663,6 @@ async def multifield_calc(params: Parameters):
                          Ey + Ey_rod + Ey_p1 + Ey_p2,
                          Ez + Ez_rod + Ez_p1 + Ez_p2])
     
-    # Electric field (nozzle + rod + plates)
-    def electric_field_needle(x, y, z):
-        
-        # Start with zero field
-        Ex, Ey, Ez = 0.0, 0.0, 0.0
-        
-        # --- Contribution from each nozzle (finite needle) ---
-        N_seg_nozzle = 10
-        for (xn, yn, zn) in nozzle_positions:
-            # Discretize nozzle as a line in y-direction
-            zs = np.linspace(zn, zn + nozzle_length, N_seg_nozzle)
-            for zi in zs:
-                rx, ry, rz = (x - xn), (y - yn), (z - zi)
-                r3 = (rx**2 + ry**2 + rz**2 + 1e-9)**1.5
-                Ex += V_nozzle * rx / r3
-                Ey += V_nozzle * ry / r3
-                Ez += V_nozzle * rz / r3
-        
-        # --- Contribution from the rod (cylinder along x-axis) ---
-        N_seg = 50
-        xs = np.linspace(-rod_length/2, rod_length/2, N_seg)
-        Ex_rod = Ey_rod = Ez_rod = 0.0
-        for xi in xs:
-            r_seg = np.sqrt(((x - xi))**2 + (y)**2 + ((z - rod_z))**2)
-            Ex_rod += V_rod * ((x - xi)) / (r_seg**3 + 1e-9)
-            Ey_rod += V_rod * (y) / (r_seg**3 + 1e-9)
-            Ez_rod += V_rod * ((z - rod_z)) / (r_seg**3 + 1e-9)
-            
-        # --- Contribution from plates ---
-        def plate_field(x, y, z, plate_center, V_plate):
-            xp, yp, zp = plate_center
-            Ny, Nz = 10, 10  # discretization resolution
-            ys = np.linspace(yp - plate_height/2, yp + plate_height/2, Ny)
-            zs = np.linspace(zp - plate_width/2, zp + plate_width/2, Nz)
-            Ex_p, Ey_p, Ez_p = 0.0, 0.0, 0.0
-            for yi in ys:
-                for zi in zs:
-                    rx, ry, rz = (x - xp), (y - yi), (z - zi)
-                    r3 = (rx**2 + ry**2 + rz**2 + 1e-9)**1.5
-                    Ex_p += V_plate * rx / r3
-                    Ey_p += V_plate * ry / r3
-                    Ez_p += V_plate * rz / r3
-            return Ex_p, Ey_p, Ez_p
-       
-        plate1_center = plate1_position[0]
-        plate2_center = plate2_position[0]
-    
-        Ex_p1, Ey_p1, Ez_p1 = plate_field(x, y, z, plate1_center, V_plate1)
-        Ex_p2, Ey_p2, Ez_p2 = plate_field(x, y, z, plate2_center, V_plate2)
-    
-        # --- Sum all contributions ---
-        return np.array([
-            Ex + Ex_rod + Ex_p1 + Ex_p2,
-            Ey + Ey_rod + Ey_p1 + Ey_p2,
-            Ez + Ez_rod + Ez_p1 + Ez_p2
-        ])
-    
     
     
     # --- 2D slice with field strength + field lines in x–z plane (y=0) ---
@@ -730,7 +739,7 @@ async def multifield_calc(params: Parameters):
         buf.seek(0)
         plt.close(fig2)
         
-        print("Returning image, size:", buf.getbuffer().nbytes)
+#        print("Returning image, size:", buf.getbuffer().nbytes)
 
         return StreamingResponse(buf, media_type="image/png")
      
@@ -760,6 +769,36 @@ async def multifield_calc(params: Parameters):
                 Ey_slice[j, i] = E[1]
                 Ez_slice[j, i] = E[2]
                 E_slice[j, i] = np.sqrt(E[1]**2 + E[2]**2)
+                
+        # --- Streamline seeds (nozzles projected onto y–z plane) ---
+        seeds = [(yn, zn) for (xn, yn, zn) in nozzle_positions]
+    
+        hits = []
+        total = 0
+    
+        for (ys, zs) in seeds:
+            y, z = ys, zs
+            for _ in range(2000):  # integrate steps
+                Ey = np.interp(y, y_vals, Ey_slice[:, nz//2], left=0, right=0)
+                Ez = np.interp(z, z_vals, Ez_slice[ny//2, :], left=0, right=0)
+                norm = np.sqrt(Ey**2 + Ez**2) + 1e-9
+                dy, dz = (Ey / norm) * 0.1, (Ez / norm) * 0.1
+                y += dy
+                z += dz
+                # Check for rod hit
+                if (y**2 + (z - rod_z)**2) <= (rod_diameter/2)**2:
+                    hits.append((y, z))
+                    break
+            total += 1
+        
+        efficiency = len(hits) / max(1, total)
+        print(f"[Metrics] y–z slice capture efficiency: {efficiency:.2f}")
+    
+        if hits:
+            hit_angles = [np.arctan2(y, z-rod_z, y) for (y, z) in hits]  # arc density
+            hist, bins = np.histogram(hit_angles, bins=12, range=(-np.pi, np.pi))
+            print(f"[Metrics] Hit density histogram (angles): {hist.tolist()}")
+    
         
         # Plot heatmap of field strength
         fig3, ax3 = plt.subplots(figsize=(6, 6))
