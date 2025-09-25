@@ -723,12 +723,13 @@ async def multifield_calc(params: Parameters):
                 z += dz
                 # Check for rod hit
                 if ((z - rod_z) <= (rod_diameter/2)) and ((x>=-rod_length/2.0) or (x<=rod_length/2.0)):
+                    print(f"x: {x:.2f}")
                     hits.append((x, z))
                     break
             total += 1
         
         efficiency = len(hits) / max(1, total)
-        print(f"[Metrics] y–z slice capture efficiency: {efficiency:.2f}")
+        print(f"[Metrics] x–z slice capture efficiency: {efficiency:.2f}")
         
         if hits:
             hit_bins = [x for (x, z) in hits]  # arc density
