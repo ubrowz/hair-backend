@@ -693,6 +693,48 @@ async def multifield_calc(params: Parameters):
                 Ex_slice[j, i] = E[0]
                 Ez_slice[j, i] = E[2]
                 E_slice[j, i] = np.sqrt(E[0]**2 + E[2]**2)
+
+
+        # --- Streamline seeds (nozzles projected onto y–z plane) ---
+
+        # Parameters for seeding
+        Nseeds_per_nozzle = 30   # number of streamlines per nozzle
+        seed_radius = 0.2        # spread radius around nozzle tip (adjust units)
+        
+        seeds = []
+        for (xn, yn, zn) in nozzle_positions:
+            angles = np.linspace(0, 2*np.pi, Nseeds_per_nozzle, endpoint=False)
+            for a in angles:
+                xs = xn + seed_radius * np.cos(a)
+                zs = zn + seed_radius * np.sin(a)
+                seeds.append((xs, zs))
+        
+        hits = []
+        total = 0
+        
+        for (xs, zs) in seeds:
+            x, z = xs, zs
+            for _ in range(2000):  # integrate steps
+                Ex = np.interp(x, x_vals, Ex_slice[:, nz//2], left=0, right=0)
+                Ez = np.interp(z, z_vals, Ez_slice[nx//2, :], left=0, right=0)
+                norm = np.sqrt(Ex**2 + Ez**2) + 1e-9
+                dx, dz = (Ex / norm) * 0.1, (Ez / norm) * 0.1
+                x += dx
+                z += dz
+                # Check for rod hit
+                if ((z - rod_z) <= (rod_diameter/2)) and ((x>=-rod_length/2.0) or (x<=rod_length/2.0)):
+                    hits.append((x, z))
+                    break
+            total += 1
+        
+        efficiency = len(hits) / max(1, total)
+        print(f"[Metrics] y–z slice capture efficiency: {efficiency:.2f}")
+        
+        if hits:
+            hit_bins = [x for (x, z) in hits]  # arc density
+            hist, bins = np.histogram(hit_bins, bins=12, range=(-rod_length/2.0, rod_length/2.0))
+            print(f"[Metrics] Hit density histogram (rodlength): {hist.tolist()}")
+
         
         # Plot heatmap of field strength
         fig2, ax2 = plt.subplots(figsize=(7, 5))
