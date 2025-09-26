@@ -796,15 +796,16 @@ async def multifield_calc(params: Parameters):
             n_bins = 100
             bin_edges = np.linspace(-rod_length/2.0, rod_length/2.0, n_bins+1)
             bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
-            deposition = np.zeros_like(bin_centers)
+            deposition = np.zeros_like(bin_centers, dtype=float)
         
             # Add Gaussian from each hit
-            for x_hit, L in zip(hits, path_lengths):
+            for (x_hit, z_hit), L in zip(hits, path_lengths):
                 sigma = k_sigma * (L ** alpha)
                 deposition += pdf(bin_centers, loc=x_hit, scale=sigma)
         
             # Normalize
-            deposition /= deposition.sum()
+            if deposition.sum() > 0:
+                deposition /= deposition.sum()
             
                 
         # Plot heatmap of field strength
