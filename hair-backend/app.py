@@ -756,8 +756,25 @@ async def multifield_calc(params: Parameters):
             hist, bins = np.histogram(hit_xs, bins=60, range=(-rod_length/2.0, rod_length/2.0))
             bin_width = bins[1] - bins[0]
             bin_centers = 0.5 * (bins[:-1] + bins[1:])
-            hist_density = hist / (hist.sum() * bin_width)  # normalized per unit length
-            print(f"[Metrics] Hit density histogram (per unit length): {hist_density.round(3).tolist()}")
+            
+            # Raw histogram (counts, not normalized yet)
+            hist, bins = np.histogram(hit_xs, bins=24, range=(-rod_length/2.0, rod_length/2.0))
+            bin_width = bins[1] - bins[0]
+            bin_centers = 0.5 * (bins[:-1] + bins[1:])
+            
+            # --- Apply Gaussian smoothing on raw counts ---
+            sigma_bins = 2.0   # in *number of bins*, not physical cm
+            hist_smooth_counts = gaussian_filter1d(hist.astype(float), sigma=sigma_bins, mode="constant")
+            
+            # Normalize smoothed counts to a density (so integral = 1)
+            if hist_smooth_counts.sum() > 0:
+                hist_smooth_density = hist_smooth_counts / (hist_smooth_counts.sum() * bin_width)
+            else:
+                hist_smooth_density = np.zeros_like(hist_smooth_counts)
+
+            
+            #hist_density = hist / (hist.sum() * bin_width)  # normalized per unit length
+           # print(f"[Metrics] Hit density histogram (per unit length): {hist_density.round(3).tolist()}")
             #hist, bins = np.histogram(hit_xs, bins=12, range=(-rod_length/2.0, rod_length/2.0))
             #print(f"[Metrics] Hit density histogram (rod length): {hist.tolist()}")
             # optionally also print a few raw x hits for debugging:
@@ -801,18 +818,17 @@ async def multifield_calc(params: Parameters):
         if hits:
             # Add second y-axis for histogram overlay
             ax_hist = ax2.twinx()
-            hist_smooth = gaussian_filter1d(hist_density, sigma=2)
-            ax_hist.plot(bin_centers, hist_smooth, color="black", linewidth=2, label="Hit density")
+            #hist_smooth = gaussian_filter1d(hist_density, sigma=2)
+            ax_hist.plot(bin_centers, hist_smooth_density, color="black", linewidth=2, label="Hit density")
             ax_hist.set_ylabel("Hit density (fraction)", color="black")
-            ax_hist.set_ylim(0, np.max(hist_smooth) / 0.5)  # Max bar = 50% of plot height
+            ax_hist.set_ylim(0, np.max(hist_smooth_density) *1.2 )  # Max bar = 50% of plot height
             ax_hist.tick_params(axis="y", labelcolor="black")
             # Add text at specific coordinates
-#            ax_hist.text(0, 0, f"\nField efficiency: {efficiency:.2f}" , fontsize=10, color="black", ha="left", va="top")
             ax_hist.text(
                 0.02, 0.95, 
                 f"Field efficiency: {efficiency:.2f}", 
                 transform=ax_hist.transAxes,   # <--- important
-                fontsize=10, color="black", 
+                fontsize=10, color="white", 
                 ha="left", va="top"
             )
         
