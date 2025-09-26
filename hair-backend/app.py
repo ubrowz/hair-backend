@@ -790,12 +790,7 @@ async def multifield_calc(params: Parameters):
         norm = ThresholdNorm(vmin=0, vmax=threshold, threshold=threshold)
         
         im = ax2.pcolormesh(X, Z, E_slice, cmap=cmap, norm=norm, shading="auto")
-        fig2.colorbar(im, ax=ax2, orientation="horizontal", pad=0.2, shrink=0.8, label="|E|")
-        # Add colorbar in a free-floating axis (coords: [left, bottom, width, height])
-        #cax = fig2.add_axes([0.92, 0.15, 0.02, 0.7])  
-
-        # Now draw the colorbar in that dedicated axis
-        #fig2.colorbar(im, cax=cax, label="|E|")
+        fig2.colorbar(im, ax=ax2, orientation="horizontal", shrink=0.8, label="|E|")
         
         # Add 2D streamlines (direction field)
         ax2.streamplot(X, Z, Ex_slice, Ez_slice, color="white",
@@ -886,7 +881,7 @@ async def multifield_calc(params: Parameters):
                                                bounds_error=False, fill_value=0.0)
         
         # Seeds on circle around each nozzle (projected to y–z)
-        Nseeds_per_nozzle = 30
+        Nseeds_per_nozzle = 180
         seed_radius = 0.2
         seeds = []
         for (xn, yn, zn) in nozzle_positions:
@@ -929,11 +924,11 @@ async def multifield_calc(params: Parameters):
         efficiency = len(hits) / max(1, total)
         print(f"[Metrics] y–z slice capture efficiency: {efficiency:.2f}")
         
-        if hits:
-            hit_angles = [np.arctan2(y, z - rod_z) for (y, z) in hits]
-            hist, bins = np.histogram(hit_angles, bins=12, range=(-np.pi, np.pi))
-            print(f"[Metrics] Hit density histogram (angles): {hist.tolist()}")
-            #print("raw hit angles (radians) first 20:", np.array(hit_angles)[:20])  
+        # if hits:
+        #     hit_angles = [np.arctan2(y, z - rod_z) for (y, z) in hits]
+        #     hist, bins = np.histogram(hit_angles, bins=12, range=(-np.pi, np.pi))
+        #     print(f"[Metrics] Hit density histogram (angles): {hist.tolist()}")
+        #     print("raw hit angles (radians) first 20:", np.array(hit_angles)[:20])  
         
               
         # Plot heatmap of field strength
@@ -973,7 +968,15 @@ async def multifield_calc(params: Parameters):
                     fill=True, color=color, alpha=0.3, zorder=5
                 )
                 ax3.add_patch(rect)
-        
+
+        if hits:
+            ax3.text(
+                0.02, 0.95, 
+                f"Field efficiency: {efficiency:.2f}", 
+                transform=ax_hist.transAxes,   # <--- important
+                fontsize=10, color="white", 
+                ha="left", va="top"
+            )
         ax3.set_xlabel("y")
         ax3.set_ylabel("z")
         ax3.set_aspect("equal")
