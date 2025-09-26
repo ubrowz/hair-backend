@@ -29,6 +29,7 @@ from scipy.ndimage import gaussian_filter1d
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
+
 app = FastAPI()
 
 # ✅ Load model ONCE at startup
@@ -472,7 +473,8 @@ async def field_calc(params: Parameters):
 
     return StreamingResponse(buf, media_type="image/png")
 
-
+from scipy.stats import norm
+pdf = norm.pdf
 
 @app.post("/multiflds/")
 async def multifield_calc(params: Parameters):
@@ -718,26 +720,33 @@ async def multifield_calc(params: Parameters):
         
         # Integrate streamlines using interpolators
         hits = []
+        path_lengths = []
         total = 0
         max_steps = 2000
         ds = 0.1   # step length (tune to your units)
         
+        # Parameters for jet spreading
+        k_sigma = 0.02     # scaling factor (tune!)
+        alpha = 0.5        # exponent (0.5 ~ sqrt law, 1.0 = linear)
+                
         x_min, x_max = x_vals[0], x_vals[-1]
         z_min, z_max = z_vals[0], z_vals[-1]
         
         for (xs, zs) in seeds:
             x, z = float(xs), float(zs)
+            path_length = 0.0 
             for _ in range(max_steps):
                 Ex = float(interp_Ex_xz((z, x)))   # note order (z, x)
                 Ez = float(interp_Ez_xz((z, x)))
-                norm = np.hypot(Ex, Ez)
-                if norm < 1e-12:
+                norm1 = np.hypot(Ex, Ez)
+                if norm1 < 1e-12:
                     # field too small → consider this streamline escaping
                     break
-                dx = (Ex / norm) * ds
-                dz = (Ez / norm) * ds
+                dx = (Ex / norm1) * ds
+                dz = (Ez / norm1) * ds
                 x += dx
                 z += dz
+                path_length += ds  # accumulate travel length
         
                 # If outside the plotting domain, stop (escaped)
                 if (x < x_min - 1.0) or (x > x_max + 1.0) or (z < z_min - 1.0) or (z > z_max + 1.0):
@@ -746,6 +755,7 @@ async def multifield_calc(params: Parameters):
                 # Rod hit check (x–z slice): z close to rod_z and x within rod length
                 if (abs(z - rod_z) <= rod_diameter/2) and (-rod_length/2.0 <= x <= rod_length/2.0):
                     hits.append((x, z))
+                    path_lengths.append(path_length)
                     break
             total += 1
         
@@ -779,7 +789,24 @@ async def multifield_calc(params: Parameters):
             #hist, bins = np.histogram(hit_xs, bins=12, range=(-rod_length/2.0, rod_length/2.0))
             #print(f"[Metrics] Hit density histogram (rod length): {hist.tolist()}")
             # optionally also print a few raw x hits for debugging:
-            # print("raw hit x positions (first 20):", np.array(hit_xs)[:20])        
+            # print("raw hit x positions (first 20):", np.array(hit_xs)[:20])  
+            
+        if False:
+            # Bin centers
+            n_bins = 100
+            bin_edges = np.linspace(-rod_length/2.0, rod_length/2.0, n_bins+1)
+            bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
+            deposition = np.zeros_like(bin_centers, dtype=float)
+        
+            # Add Gaussian from each hit
+            for (x_hit, z_hit), L in zip(hits, path_lengths):
+                sigma = k_sigma * (L ** alpha)
+                deposition += pdf(bin_centers, loc=x_hit, scale=sigma)
+        
+            # Normalize
+            if deposition.sum() > 0:
+                deposition /= deposition.sum()
+            
                 
         # Plot heatmap of field strength
         fig2, ax2 = plt.subplots(figsize=(7, 5))
@@ -787,9 +814,9 @@ async def multifield_calc(params: Parameters):
         
 #        threshold = 10  # in your units, e.g. V/m or kV/cm depending on inputs
         cmap = plt.cm.plasma
-        norm = ThresholdNorm(vmin=0, vmax=threshold, threshold=threshold)
+        norm1 = ThresholdNorm(vmin=0, vmax=threshold, threshold=threshold)
         
-        im = ax2.pcolormesh(X, Z, E_slice, cmap=cmap, norm=norm, shading="auto")
+        im = ax2.pcolormesh(X, Z, E_slice, cmap=cmap, norm=norm1, shading="auto")
         fig2.colorbar(im, ax=ax2, orientation="horizontal", shrink=0.8, label="|E|")
         
         # Add 2D streamlines (direction field)
@@ -821,6 +848,7 @@ async def multifield_calc(params: Parameters):
             ax_hist = ax2.twinx()
             #hist_smooth = gaussian_filter1d(hist_density, sigma=2)
             ax_hist.plot(bin_centers, hist_smooth_density, color="black", linewidth=2, label="Hit density")
+#            ax_hist.plot(bin_centers, deposition, color="black", linewidth=2, label="Hit density")
             ax_hist.set_ylabel("Hit density (fraction)", color="black")
             ax_hist.set_ylim(0, np.max(hist_smooth_density) *1.2 )  # Max bar = 50% of plot height
             ax_hist.tick_params(axis="y", labelcolor="black")
