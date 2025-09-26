@@ -973,7 +973,7 @@ async def multifield_calc(params: Parameters):
             ax3.text(
                 0.02, 0.95, 
                 f"Field efficiency: {efficiency:.2f}", 
-                transform=ax_hist.transAxes,   # <--- important
+                transform=ax3.transAxes,   # <--- important
                 fontsize=10, color="white", 
                 ha="left", va="top"
             )
