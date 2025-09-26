@@ -27,7 +27,7 @@ from pathlib import Path
 from scipy.interpolate import RegularGridInterpolator
 from scipy.ndimage import gaussian_filter1d
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-from scipy.stats import norm
+
 
 
 app = FastAPI()
@@ -473,7 +473,7 @@ async def field_calc(params: Parameters):
 
     return StreamingResponse(buf, media_type="image/png")
 
-
+from scipy.stats.norm import pdf
 
 @app.post("/multiflds/")
 async def multifield_calc(params: Parameters):
@@ -737,12 +737,12 @@ async def multifield_calc(params: Parameters):
             for _ in range(max_steps):
                 Ex = float(interp_Ex_xz((z, x)))   # note order (z, x)
                 Ez = float(interp_Ez_xz((z, x)))
-                norm = np.hypot(Ex, Ez)
-                if norm < 1e-12:
+                norm1 = np.hypot(Ex, Ez)
+                if norm1 < 1e-12:
                     # field too small → consider this streamline escaping
                     break
-                dx = (Ex / norm) * ds
-                dz = (Ez / norm) * ds
+                dx = (Ex / norm1) * ds
+                dz = (Ez / norm1) * ds
                 x += dx
                 z += dz
                 path_length += ds  # accumulate travel length
@@ -800,7 +800,7 @@ async def multifield_calc(params: Parameters):
             # Add Gaussian from each hit
             for x_hit, L in zip(hits, path_lengths):
                 sigma = k_sigma * (L ** alpha)
-                deposition += norm.pdf(bin_centers, loc=x_hit, scale=sigma)
+                deposition += pdf(bin_centers, loc=x_hit, scale=sigma)
         
             # Normalize
             deposition /= deposition.sum()
@@ -812,9 +812,9 @@ async def multifield_calc(params: Parameters):
         
 #        threshold = 10  # in your units, e.g. V/m or kV/cm depending on inputs
         cmap = plt.cm.plasma
-        norm = ThresholdNorm(vmin=0, vmax=threshold, threshold=threshold)
+        norm1 = ThresholdNorm(vmin=0, vmax=threshold, threshold=threshold)
         
-        im = ax2.pcolormesh(X, Z, E_slice, cmap=cmap, norm=norm, shading="auto")
+        im = ax2.pcolormesh(X, Z, E_slice, cmap=cmap, norm=norm1, shading="auto")
         fig2.colorbar(im, ax=ax2, orientation="horizontal", shrink=0.8, label="|E|")
         
         # Add 2D streamlines (direction field)
