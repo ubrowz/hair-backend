@@ -25,6 +25,7 @@ import re
 import sys
 from pathlib import Path
 from scipy.interpolate import RegularGridInterpolator
+from scipy.ndimage import gaussian_filter1d
 
 
 app = FastAPI()
@@ -800,11 +801,13 @@ async def multifield_calc(params: Parameters):
         if hits:
             # Add second y-axis for histogram overlay
             ax_hist = ax2.twinx()
-            ax_hist.plot(bin_centers, hist_density, color="black", linewidth=2, label="Hit density")
+            hist_smooth = gaussian_filter1d(hist_density, sigma=2)
+            ax_hist.plot(bin_centers, hist_smooth, color="black", linewidth=2, label="Hit density")
             ax_hist.set_ylabel("Hit density (fraction)", color="black")
+            ax_hist.set_ylim(0, np.max(hist_smooth) / 0.5)  # Max bar = 50% of plot height
             ax_hist.tick_params(axis="y", labelcolor="black")
             # Add text at specific coordinates
-            plt.text(0, -4, f"\nField efficiency: {efficiency:.2f}" , fontsize=10, color="gray", ha="left", va="top")
+            ax_hist.text(0, -3, f"\nField efficiency: {efficiency:.2f}" , fontsize=10, color="gray", ha="left", va="top")
 
         
         ax2.set_xlabel("x")
