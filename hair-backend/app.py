@@ -807,8 +807,14 @@ async def multifield_calc(params: Parameters):
             ax_hist.set_ylim(0, np.max(hist_smooth) / 0.5)  # Max bar = 50% of plot height
             ax_hist.tick_params(axis="y", labelcolor="black")
             # Add text at specific coordinates
-            ax_hist.text(0, -3, f"\nField efficiency: {efficiency:.2f}" , fontsize=10, color="gray", ha="left", va="top")
-
+#            ax_hist.text(0, 0, f"\nField efficiency: {efficiency:.2f}" , fontsize=10, color="black", ha="left", va="top")
+            ax_hist.text(
+                0.02, 0.95, 
+                f"Field efficiency: {efficiency:.2f}", 
+                transform=ax_hist.transAxes,   # <--- important
+                fontsize=10, color="black", 
+                ha="left", va="top"
+            )
         
         ax2.set_xlabel("x")
         ax2.set_ylabel("z")
