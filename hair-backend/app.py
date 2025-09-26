@@ -790,12 +790,12 @@ async def multifield_calc(params: Parameters):
         norm = ThresholdNorm(vmin=0, vmax=threshold, threshold=threshold)
         
         im = ax2.pcolormesh(X, Z, E_slice, cmap=cmap, norm=norm, shading="auto")
-        #fig2.colorbar(im, ax=ax2, shrink=0.8, label="|E|")
+        fig2.colorbar(im, ax=ax2, orientation="horizontal", pad=0.2, shrink=0.8, label="|E|")
         # Add colorbar in a free-floating axis (coords: [left, bottom, width, height])
-        cax = fig2.add_axes([0.92, 0.15, 0.02, 0.7])  
+        #cax = fig2.add_axes([0.92, 0.15, 0.02, 0.7])  
 
         # Now draw the colorbar in that dedicated axis
-        fig2.colorbar(im, cax=cax, label="|E|")
+        #fig2.colorbar(im, cax=cax, label="|E|")
         
         # Add 2D streamlines (direction field)
         ax2.streamplot(X, Z, Ex_slice, Ez_slice, color="white",
