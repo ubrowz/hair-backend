@@ -762,7 +762,7 @@ async def multifield_calc(params: Parameters):
         efficiency = len(hits) / max(1, total)
         #print(f"[Metrics] x–z slice capture efficiency: {efficiency:.2f}")
         
-        if False: #hits:
+        if hits:
             hit_xs = [x for (x, z) in hits]
             hist, bins = np.histogram(hit_xs, bins=60, range=(-rod_length/2.0, rod_length/2.0))
             bin_width = bins[1] - bins[0]
@@ -791,7 +791,7 @@ async def multifield_calc(params: Parameters):
             # optionally also print a few raw x hits for debugging:
             # print("raw hit x positions (first 20):", np.array(hit_xs)[:20])  
             
-        if hits:
+        if False:
             # Bin centers
             n_bins = 100
             bin_edges = np.linspace(-rod_length/2.0, rod_length/2.0, n_bins+1)
@@ -847,8 +847,8 @@ async def multifield_calc(params: Parameters):
             # Add second y-axis for histogram overlay
             ax_hist = ax2.twinx()
             #hist_smooth = gaussian_filter1d(hist_density, sigma=2)
-#            ax_hist.plot(bin_centers, hist_smooth_density, color="black", linewidth=2, label="Hit density")
-            ax_hist.plot(bin_centers, deposition, color="black", linewidth=2, label="Hit density")
+            ax_hist.plot(bin_centers, hist_smooth_density, color="black", linewidth=2, label="Hit density")
+#            ax_hist.plot(bin_centers, deposition, color="black", linewidth=2, label="Hit density")
             ax_hist.set_ylabel("Hit density (fraction)", color="black")
             ax_hist.set_ylim(0, np.max(hist_smooth_density) *1.2 )  # Max bar = 50% of plot height
             ax_hist.tick_params(axis="y", labelcolor="black")
