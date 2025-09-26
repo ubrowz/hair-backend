@@ -24,6 +24,9 @@ import random
 import re
 import sys
 from pathlib import Path
+from scipy.interpolate import RegularGridInterpolator
+from scipy.ndimage import gaussian_filter1d
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
 app = FastAPI()
@@ -693,7 +696,91 @@ async def multifield_calc(params: Parameters):
                 Ex_slice[j, i] = E[0]
                 Ez_slice[j, i] = E[2]
                 E_slice[j, i] = np.sqrt(E[0]**2 + E[2]**2)
+
+
+        # --- Prepare 2D interpolators for x–z slice ---
+        # Ex_slice and Ez_slice have shape (nz, nx) with coords (z_vals, x_vals)
+        interp_Ex_xz = RegularGridInterpolator((z_vals, x_vals), Ex_slice,
+                                               bounds_error=False, fill_value=0.0)
+        interp_Ez_xz = RegularGridInterpolator((z_vals, x_vals), Ez_slice,
+                                               bounds_error=False, fill_value=0.0)
         
+        # Seeds (same as you had)
+        Nseeds_per_nozzle = 180
+        seed_radius = 0.2
+        seeds = []
+        for (xn, yn, zn) in nozzle_positions:
+            angles = np.linspace(0, 2*np.pi, Nseeds_per_nozzle, endpoint=False)
+            for a in angles:
+                xs = xn + seed_radius * np.cos(a)
+                zs = zn + seed_radius * np.sin(a)
+                seeds.append((xs, zs))
+        
+        # Integrate streamlines using interpolators
+        hits = []
+        total = 0
+        max_steps = 2000
+        ds = 0.1   # step length (tune to your units)
+        
+        x_min, x_max = x_vals[0], x_vals[-1]
+        z_min, z_max = z_vals[0], z_vals[-1]
+        
+        for (xs, zs) in seeds:
+            x, z = float(xs), float(zs)
+            for _ in range(max_steps):
+                Ex = float(interp_Ex_xz((z, x)))   # note order (z, x)
+                Ez = float(interp_Ez_xz((z, x)))
+                norm = np.hypot(Ex, Ez)
+                if norm < 1e-12:
+                    # field too small → consider this streamline escaping
+                    break
+                dx = (Ex / norm) * ds
+                dz = (Ez / norm) * ds
+                x += dx
+                z += dz
+        
+                # If outside the plotting domain, stop (escaped)
+                if (x < x_min - 1.0) or (x > x_max + 1.0) or (z < z_min - 1.0) or (z > z_max + 1.0):
+                    break
+        
+                # Rod hit check (x–z slice): z close to rod_z and x within rod length
+                if (abs(z - rod_z) <= rod_diameter/2) and (-rod_length/2.0 <= x <= rod_length/2.0):
+                    hits.append((x, z))
+                    break
+            total += 1
+        
+        efficiency = len(hits) / max(1, total)
+        #print(f"[Metrics] x–z slice capture efficiency: {efficiency:.2f}")
+        
+        if hits:
+            hit_xs = [x for (x, z) in hits]
+            hist, bins = np.histogram(hit_xs, bins=60, range=(-rod_length/2.0, rod_length/2.0))
+            bin_width = bins[1] - bins[0]
+            bin_centers = 0.5 * (bins[:-1] + bins[1:])
+            
+            # Raw histogram (counts, not normalized yet)
+            hist, bins = np.histogram(hit_xs, bins=24, range=(-rod_length/2.0, rod_length/2.0))
+            bin_width = bins[1] - bins[0]
+            bin_centers = 0.5 * (bins[:-1] + bins[1:])
+            
+            # --- Apply Gaussian smoothing on raw counts ---
+            sigma_bins = 2.0   # in *number of bins*, not physical cm
+            hist_smooth_counts = gaussian_filter1d(hist.astype(float), sigma=sigma_bins, mode="constant")
+            
+            # Normalize smoothed counts to a density (so integral = 1)
+            if hist_smooth_counts.sum() > 0:
+                hist_smooth_density = hist_smooth_counts / (hist_smooth_counts.sum() * bin_width)
+            else:
+                hist_smooth_density = np.zeros_like(hist_smooth_counts)
+
+            
+            #hist_density = hist / (hist.sum() * bin_width)  # normalized per unit length
+           # print(f"[Metrics] Hit density histogram (per unit length): {hist_density.round(3).tolist()}")
+            #hist, bins = np.histogram(hit_xs, bins=12, range=(-rod_length/2.0, rod_length/2.0))
+            #print(f"[Metrics] Hit density histogram (rod length): {hist.tolist()}")
+            # optionally also print a few raw x hits for debugging:
+            # print("raw hit x positions (first 20):", np.array(hit_xs)[:20])        
+                
         # Plot heatmap of field strength
         fig2, ax2 = plt.subplots(figsize=(7, 5))
         threshold = params.param18
@@ -703,7 +790,7 @@ async def multifield_calc(params: Parameters):
         norm = ThresholdNorm(vmin=0, vmax=threshold, threshold=threshold)
         
         im = ax2.pcolormesh(X, Z, E_slice, cmap=cmap, norm=norm, shading="auto")
-        fig2.colorbar(im, ax=ax2, shrink=0.8, label="|E|")
+        fig2.colorbar(im, ax=ax2, orientation="horizontal", shrink=0.8, label="|E|")
         
         # Add 2D streamlines (direction field)
         ax2.streamplot(X, Z, Ex_slice, Ez_slice, color="white",
@@ -729,6 +816,22 @@ async def multifield_calc(params: Parameters):
                 xp, yp, zp = plate_center
                 ax2.add_line(plt.Line2D([xp, xp], [zp - plate_width/2, zp + plate_width/2],
                                         color=color, linewidth=2, alpha=0.6))
+        if hits:
+            # Add second y-axis for histogram overlay
+            ax_hist = ax2.twinx()
+            #hist_smooth = gaussian_filter1d(hist_density, sigma=2)
+            ax_hist.plot(bin_centers, hist_smooth_density, color="black", linewidth=2, label="Hit density")
+            ax_hist.set_ylabel("Hit density (fraction)", color="black")
+            ax_hist.set_ylim(0, np.max(hist_smooth_density) *1.2 )  # Max bar = 50% of plot height
+            ax_hist.tick_params(axis="y", labelcolor="black")
+            # Add text at specific coordinates
+            ax_hist.text(
+                0.02, 0.95, 
+                f"Field efficiency: {efficiency:.2f}", 
+                transform=ax_hist.transAxes,   # <--- important
+                fontsize=10, color="white", 
+                ha="left", va="top"
+            )
         
         ax2.set_xlabel("x")
         ax2.set_ylabel("z")
@@ -770,22 +873,49 @@ async def multifield_calc(params: Parameters):
                 Ez_slice[j, i] = E[2]
                 E_slice[j, i] = np.sqrt(E[1]**2 + E[2]**2)
                 
-        # --- Streamline seeds (nozzles projected onto y–z plane) ---
-        seeds = [(yn, zn) for (xn, yn, zn) in nozzle_positions]
-    
+        # --- Prepare 2D interpolators for y–z slice ---
+        # Ey_slice and Ez_slice have shape (nz, ny) with coords (z_vals, y_vals)
+        interp_Ey_yz = RegularGridInterpolator((z_vals, y_vals), Ey_slice,
+                                               bounds_error=False, fill_value=0.0)
+        interp_Ez_yz = RegularGridInterpolator((z_vals, y_vals), Ez_slice,
+                                               bounds_error=False, fill_value=0.0)
+        
+        # Seeds on circle around each nozzle (projected to y–z)
+        Nseeds_per_nozzle = 180
+        seed_radius = 0.2
+        seeds = []
+        for (xn, yn, zn) in nozzle_positions:
+            angles = np.linspace(0, 2*np.pi, Nseeds_per_nozzle, endpoint=False)
+            for a in angles:
+                ys = yn + seed_radius * np.cos(a)
+                zs = zn + seed_radius * np.sin(a)
+                seeds.append((ys, zs))
+        
         hits = []
         total = 0
-    
+        max_steps = 2000
+        ds = 0.1
+        
+        y_min, y_max = y_vals[0], y_vals[-1]
+        z_min, z_max = z_vals[0], z_vals[-1]
+        
         for (ys, zs) in seeds:
-            y, z = ys, zs
-            for _ in range(2000):  # integrate steps
-                Ey = np.interp(y, y_vals, Ey_slice[:, nz//2], left=0, right=0)
-                Ez = np.interp(z, z_vals, Ez_slice[ny//2, :], left=0, right=0)
-                norm = np.sqrt(Ey**2 + Ez**2) + 1e-9
-                dy, dz = (Ey / norm) * 0.1, (Ez / norm) * 0.1
+            y, z = float(ys), float(zs)
+            for _ in range(max_steps):
+                Ey = float(interp_Ey_yz((z, y)))   # order (z, y)
+                Ez = float(interp_Ez_yz((z, y)))
+                norm = np.hypot(Ey, Ez)
+                if norm < 1e-12:
+                    break
+                dy = (Ey / norm) * ds
+                dz = (Ez / norm) * ds
                 y += dy
                 z += dz
-                # Check for rod hit
+        
+                if (y < y_min - 1.0) or (y > y_max + 1.0) or (z < z_min - 1.0) or (z > z_max + 1.0):
+                    break
+        
+                # Rod hit check (y–z slice): distance to rod axis
                 if (y**2 + (z - rod_z)**2) <= (rod_diameter/2)**2:
                     hits.append((y, z))
                     break
@@ -793,13 +923,14 @@ async def multifield_calc(params: Parameters):
         
         efficiency = len(hits) / max(1, total)
         print(f"[Metrics] y–z slice capture efficiency: {efficiency:.2f}")
-    
-        if hits:
-            hit_angles = [np.arctan2(y, z-rod_z) for (y, z) in hits]  # arc density
-            hist, bins = np.histogram(hit_angles, bins=12, range=(-np.pi, np.pi))
-            print(f"[Metrics] Hit density histogram (angles): {hist.tolist()}")
-    
         
+        # if hits:
+        #     hit_angles = [np.arctan2(y, z - rod_z) for (y, z) in hits]
+        #     hist, bins = np.histogram(hit_angles, bins=12, range=(-np.pi, np.pi))
+        #     print(f"[Metrics] Hit density histogram (angles): {hist.tolist()}")
+        #     print("raw hit angles (radians) first 20:", np.array(hit_angles)[:20])  
+        
+              
         # Plot heatmap of field strength
         fig3, ax3 = plt.subplots(figsize=(6, 6))
         
@@ -837,7 +968,15 @@ async def multifield_calc(params: Parameters):
                     fill=True, color=color, alpha=0.3, zorder=5
                 )
                 ax3.add_patch(rect)
-        
+
+        if hits:
+            ax3.text(
+                0.02, 0.95, 
+                f"Field efficiency: {efficiency:.2f}", 
+                transform=ax3.transAxes,   # <--- important
+                fontsize=10, color="white", 
+                ha="left", va="top"
+            )
         ax3.set_xlabel("y")
         ax3.set_ylabel("z")
         ax3.set_aspect("equal")
