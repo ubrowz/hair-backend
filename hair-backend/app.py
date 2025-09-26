@@ -800,9 +800,9 @@ async def multifield_calc(params: Parameters):
         if hits:
             # Add second y-axis for histogram overlay
             ax_hist = ax2.twinx()
-            ax_hist.plot(bin_centers, hist_density, color="red", linewidth=2, marker="o", label="Hit density")
-            ax_hist.set_ylabel("Hit density (fraction)", color="red")
-            ax_hist.tick_params(axis="y", labelcolor="red")
+            ax_hist.plot(bin_centers, hist_density, color="black", linewidth=2, label="Hit density")
+            ax_hist.set_ylabel("Hit density (fraction)", color="black")
+            ax_hist.tick_params(axis="y", labelcolor="black")
 
         
         ax2.set_xlabel("x")
