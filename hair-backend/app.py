@@ -704,7 +704,7 @@ async def multifield_calc(params: Parameters):
                                                bounds_error=False, fill_value=0.0)
         
         # Seeds (same as you had)
-        Nseeds_per_nozzle = 30
+        Nseeds_per_nozzle = 60
         seed_radius = 0.2
         seeds = []
         for (xn, yn, zn) in nozzle_positions:
