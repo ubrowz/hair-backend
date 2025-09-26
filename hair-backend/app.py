@@ -695,9 +695,7 @@ async def multifield_calc(params: Parameters):
                 E_slice[j, i] = np.sqrt(E[0]**2 + E[2]**2)
 
 
-        # --- Streamline seeds (nozzles projected onto y–z plane) ---
-
-        # Parameters for seeding
+        # --- Streamline seeds (nozzles projected onto x–z plane) ---
         Nseeds_per_nozzle = 30   # number of streamlines per nozzle
         seed_radius = 0.2        # spread radius around nozzle tip (adjust units)
         
@@ -721,9 +719,8 @@ async def multifield_calc(params: Parameters):
                 dx, dz = (Ex / norm) * 0.1, (Ez / norm) * 0.1
                 x += dx
                 z += dz
-                # Check for rod hit
-                if ((z - rod_z) <= (rod_diameter/2)) and ((x>=-rod_length/2.0) or (x<=rod_length/2.0)):
-                    print(f"x: {x:.2f}")
+                # Check for rod hit (surface in x–z slice)
+                if (abs(z - rod_z) <= rod_diameter/2) and (-rod_length/2.0 <= x <= rod_length/2.0):
                     hits.append((x, z))
                     break
             total += 1
@@ -732,10 +729,10 @@ async def multifield_calc(params: Parameters):
         print(f"[Metrics] x–z slice capture efficiency: {efficiency:.2f}")
         
         if hits:
-            hit_bins = [x for (x, z) in hits]  # arc density
-            hist, bins = np.histogram(hit_bins, bins=12, range=(-rod_length/2.0, rod_length/2.0))
-            print(f"[Metrics] Hit density histogram (rodlength): {hist.tolist()}")
-
+            hit_xs = [x for (x, z) in hits]  # distribution along rod axis
+            hist, bins = np.histogram(hit_xs, bins=12, range=(-rod_length/2.0, rod_length/2.0))
+            print(f"[Metrics] Hit density histogram (rod length): {hist.tolist()}")
+        
         
         # Plot heatmap of field strength
         fig2, ax2 = plt.subplots(figsize=(7, 5))
