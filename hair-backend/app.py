@@ -753,9 +753,13 @@ async def multifield_calc(params: Parameters):
         if hits:
             hit_xs = [x for (x, z) in hits]
             hist, bins = np.histogram(hit_xs, bins=12, range=(-rod_length/2.0, rod_length/2.0))
-            print(f"[Metrics] Hit density histogram (rod length): {hist.tolist()}")
+            bin_width = bins[1] - bins[0]
+            hist_density = hist / (hist.sum() * bin_width)  # normalized per unit length
+            print(f"[Metrics] Hit density histogram (per unit length): {hist_density.round(3).tolist()}")
+            #hist, bins = np.histogram(hit_xs, bins=12, range=(-rod_length/2.0, rod_length/2.0))
+            #print(f"[Metrics] Hit density histogram (rod length): {hist.tolist()}")
             # optionally also print a few raw x hits for debugging:
-            print("raw hit x positions (first 20):", np.array(hit_xs)[:20])        
+            # print("raw hit x positions (first 20):", np.array(hit_xs)[:20])        
                 
         # Plot heatmap of field strength
         fig2, ax2 = plt.subplots(figsize=(7, 5))
@@ -888,7 +892,7 @@ async def multifield_calc(params: Parameters):
             hit_angles = [np.arctan2(y, z - rod_z) for (y, z) in hits]
             hist, bins = np.histogram(hit_angles, bins=12, range=(-np.pi, np.pi))
             print(f"[Metrics] Hit density histogram (angles): {hist.tolist()}")
-            print("raw hit angles (radians) first 20:", np.array(hit_angles)[:20])  
+            #print("raw hit angles (radians) first 20:", np.array(hit_angles)[:20])  
         
               
         # Plot heatmap of field strength
