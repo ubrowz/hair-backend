@@ -754,6 +754,7 @@ async def multifield_calc(params: Parameters):
             hit_xs = [x for (x, z) in hits]
             hist, bins = np.histogram(hit_xs, bins=12, range=(-rod_length/2.0, rod_length/2.0))
             bin_width = bins[1] - bins[0]
+            bin_centers = 0.5 * (bins[:-1] + bins[1:])
             hist_density = hist / (hist.sum() * bin_width)  # normalized per unit length
             print(f"[Metrics] Hit density histogram (per unit length): {hist_density.round(3).tolist()}")
             #hist, bins = np.histogram(hit_xs, bins=12, range=(-rod_length/2.0, rod_length/2.0))
@@ -796,6 +797,13 @@ async def multifield_calc(params: Parameters):
                 xp, yp, zp = plate_center
                 ax2.add_line(plt.Line2D([xp, xp], [zp - plate_width/2, zp + plate_width/2],
                                         color=color, linewidth=2, alpha=0.6))
+        if hits:
+            # Add second y-axis for histogram overlay
+            ax_hist = ax2.twinx()
+            ax_hist.plot(bin_centers, hist_density, color="red", linewidth=2, marker="o", label="Hit density")
+            ax_hist.set_ylabel("Hit density (fraction)", color="red")
+            ax_hist.tick_params(axis="y", labelcolor="red")
+
         
         ax2.set_xlabel("x")
         ax2.set_ylabel("z")
