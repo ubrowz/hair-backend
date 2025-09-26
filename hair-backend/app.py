@@ -26,6 +26,7 @@ import sys
 from pathlib import Path
 from scipy.interpolate import RegularGridInterpolator
 from scipy.ndimage import gaussian_filter1d
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
 app = FastAPI()
@@ -749,7 +750,7 @@ async def multifield_calc(params: Parameters):
             total += 1
         
         efficiency = len(hits) / max(1, total)
-        print(f"[Metrics] x–z slice capture efficiency: {efficiency:.2f}")
+        #print(f"[Metrics] x–z slice capture efficiency: {efficiency:.2f}")
         
         if hits:
             hit_xs = [x for (x, z) in hits]
@@ -789,7 +790,15 @@ async def multifield_calc(params: Parameters):
         norm = ThresholdNorm(vmin=0, vmax=threshold, threshold=threshold)
         
         im = ax2.pcolormesh(X, Z, E_slice, cmap=cmap, norm=norm, shading="auto")
-        fig2.colorbar(im, ax=ax2, shrink=0.8, label="|E|")
+        #fig2.colorbar(im, ax=ax2, shrink=0.8, label="|E|")
+        # Create a divider for existing axis
+        divider = make_axes_locatable(ax2)
+        
+        # Append a new axis to the right with some padding
+        cax = divider.append_axes("right", size="5%", pad=0.4)
+        
+        # Now draw the colorbar in that dedicated axis
+        fig2.colorbar(im, cax=cax, label="|E|")
         
         # Add 2D streamlines (direction field)
         ax2.streamplot(X, Z, Ex_slice, Ez_slice, color="white",
