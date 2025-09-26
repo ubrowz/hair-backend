@@ -791,12 +791,9 @@ async def multifield_calc(params: Parameters):
         
         im = ax2.pcolormesh(X, Z, E_slice, cmap=cmap, norm=norm, shading="auto")
         #fig2.colorbar(im, ax=ax2, shrink=0.8, label="|E|")
-        # Create a divider for existing axis
-        divider = make_axes_locatable(ax2)
-        
-        # Append a new axis to the right with some padding
-        cax = divider.append_axes("right", size="5%", pad=0.4)
-        
+        # Add colorbar in a free-floating axis (coords: [left, bottom, width, height])
+        cax = fig2.add_axes([0.92, 0.15, 0.02, 0.7])  
+
         # Now draw the colorbar in that dedicated axis
         fig2.colorbar(im, cax=cax, label="|E|")
         
