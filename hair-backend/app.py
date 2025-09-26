@@ -24,6 +24,7 @@ import random
 import re
 import sys
 from pathlib import Path
+from scipy.interpolate import RegularGridInterpolator
 
 
 app = FastAPI()
@@ -695,10 +696,16 @@ async def multifield_calc(params: Parameters):
                 E_slice[j, i] = np.sqrt(E[0]**2 + E[2]**2)
 
 
-        # --- Streamline seeds (nozzles projected onto x–z plane) ---
-        Nseeds_per_nozzle = 30   # number of streamlines per nozzle
-        seed_radius = 0.2        # spread radius around nozzle tip (adjust units)
+        # --- Prepare 2D interpolators for x–z slice ---
+        # Ex_slice and Ez_slice have shape (nz, nx) with coords (z_vals, x_vals)
+        interp_Ex_xz = RegularGridInterpolator((z_vals, x_vals), Ex_slice,
+                                               bounds_error=False, fill_value=0.0)
+        interp_Ez_xz = RegularGridInterpolator((z_vals, x_vals), Ez_slice,
+                                               bounds_error=False, fill_value=0.0)
         
+        # Seeds (same as you had)
+        Nseeds_per_nozzle = 30
+        seed_radius = 0.2
         seeds = []
         for (xn, yn, zn) in nozzle_positions:
             angles = np.linspace(0, 2*np.pi, Nseeds_per_nozzle, endpoint=False)
@@ -707,19 +714,34 @@ async def multifield_calc(params: Parameters):
                 zs = zn + seed_radius * np.sin(a)
                 seeds.append((xs, zs))
         
+        # Integrate streamlines using interpolators
         hits = []
         total = 0
+        max_steps = 2000
+        ds = 0.1   # step length (tune to your units)
+        
+        x_min, x_max = x_vals[0], x_vals[-1]
+        z_min, z_max = z_vals[0], z_vals[-1]
         
         for (xs, zs) in seeds:
-            x, z = xs, zs
-            for _ in range(2000):  # integrate steps
-                Ex = np.interp(x, x_vals, Ex_slice[:, nz//2], left=0, right=0)
-                Ez = np.interp(z, z_vals, Ez_slice[nx//2, :], left=0, right=0)
-                norm = np.sqrt(Ex**2 + Ez**2) + 1e-9
-                dx, dz = (Ex / norm) * 0.1, (Ez / norm) * 0.1
+            x, z = float(xs), float(zs)
+            for _ in range(max_steps):
+                Ex = float(interp_Ex_xz((z, x)))   # note order (z, x)
+                Ez = float(interp_Ez_xz((z, x)))
+                norm = np.hypot(Ex, Ez)
+                if norm < 1e-12:
+                    # field too small → consider this streamline escaping
+                    break
+                dx = (Ex / norm) * ds
+                dz = (Ez / norm) * ds
                 x += dx
                 z += dz
-                # Check for rod hit (surface in x–z slice)
+        
+                # If outside the plotting domain, stop (escaped)
+                if (x < x_min - 1.0) or (x > x_max + 1.0) or (z < z_min - 1.0) or (z > z_max + 1.0):
+                    break
+        
+                # Rod hit check (x–z slice): z close to rod_z and x within rod length
                 if (abs(z - rod_z) <= rod_diameter/2) and (-rod_length/2.0 <= x <= rod_length/2.0):
                     hits.append((x, z))
                     break
@@ -729,11 +751,12 @@ async def multifield_calc(params: Parameters):
         print(f"[Metrics] x–z slice capture efficiency: {efficiency:.2f}")
         
         if hits:
-            hit_xs = [x for (x, z) in hits]  # distribution along rod axis
+            hit_xs = [x for (x, z) in hits]
             hist, bins = np.histogram(hit_xs, bins=12, range=(-rod_length/2.0, rod_length/2.0))
             print(f"[Metrics] Hit density histogram (rod length): {hist.tolist()}")
-        
-        
+            # optionally also print a few raw x hits for debugging:
+            print("raw hit x positions (first 20):", np.array(hit_xs)[:20])        
+                
         # Plot heatmap of field strength
         fig2, ax2 = plt.subplots(figsize=(7, 5))
         threshold = params.param18
@@ -810,12 +833,16 @@ async def multifield_calc(params: Parameters):
                 Ez_slice[j, i] = E[2]
                 E_slice[j, i] = np.sqrt(E[1]**2 + E[2]**2)
                 
-        # --- Streamline seeds (nozzles projected onto y–z plane) ---
-
-        # Parameters for seeding
-        Nseeds_per_nozzle = 30   # number of streamlines per nozzle
-        seed_radius = 0.2        # spread radius around nozzle tip (adjust units)
+        # --- Prepare 2D interpolators for y–z slice ---
+        # Ey_slice and Ez_slice have shape (nz, ny) with coords (z_vals, y_vals)
+        interp_Ey_yz = RegularGridInterpolator((z_vals, y_vals), Ey_slice,
+                                               bounds_error=False, fill_value=0.0)
+        interp_Ez_yz = RegularGridInterpolator((z_vals, y_vals), Ez_slice,
+                                               bounds_error=False, fill_value=0.0)
         
+        # Seeds on circle around each nozzle (projected to y–z)
+        Nseeds_per_nozzle = 30
+        seed_radius = 0.2
         seeds = []
         for (xn, yn, zn) in nozzle_positions:
             angles = np.linspace(0, 2*np.pi, Nseeds_per_nozzle, endpoint=False)
@@ -826,17 +853,29 @@ async def multifield_calc(params: Parameters):
         
         hits = []
         total = 0
+        max_steps = 2000
+        ds = 0.1
+        
+        y_min, y_max = y_vals[0], y_vals[-1]
+        z_min, z_max = z_vals[0], z_vals[-1]
         
         for (ys, zs) in seeds:
-            y, z = ys, zs
-            for _ in range(2000):  # integrate steps
-                Ey = np.interp(y, y_vals, Ey_slice[:, nz//2], left=0, right=0)
-                Ez = np.interp(z, z_vals, Ez_slice[ny//2, :], left=0, right=0)
-                norm = np.sqrt(Ey**2 + Ez**2) + 1e-9
-                dy, dz = (Ey / norm) * 0.1, (Ez / norm) * 0.1
+            y, z = float(ys), float(zs)
+            for _ in range(max_steps):
+                Ey = float(interp_Ey_yz((z, y)))   # order (z, y)
+                Ez = float(interp_Ez_yz((z, y)))
+                norm = np.hypot(Ey, Ez)
+                if norm < 1e-12:
+                    break
+                dy = (Ey / norm) * ds
+                dz = (Ez / norm) * ds
                 y += dy
                 z += dz
-                # Check for rod hit
+        
+                if (y < y_min - 1.0) or (y > y_max + 1.0) or (z < z_min - 1.0) or (z > z_max + 1.0):
+                    break
+        
+                # Rod hit check (y–z slice): distance to rod axis
                 if (y**2 + (z - rod_z)**2) <= (rod_diameter/2)**2:
                     hits.append((y, z))
                     break
@@ -846,11 +885,12 @@ async def multifield_calc(params: Parameters):
         print(f"[Metrics] y–z slice capture efficiency: {efficiency:.2f}")
         
         if hits:
-            hit_angles = [np.arctan2(y, z-rod_z) for (y, z) in hits]  # arc density
+            hit_angles = [np.arctan2(y, z - rod_z) for (y, z) in hits]
             hist, bins = np.histogram(hit_angles, bins=12, range=(-np.pi, np.pi))
             print(f"[Metrics] Hit density histogram (angles): {hist.tolist()}")
+            print("raw hit angles (radians) first 20:", np.array(hit_angles)[:20])  
         
-        
+              
         # Plot heatmap of field strength
         fig3, ax3 = plt.subplots(figsize=(6, 6))
         
