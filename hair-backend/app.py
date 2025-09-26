@@ -27,6 +27,7 @@ from pathlib import Path
 from scipy.interpolate import RegularGridInterpolator
 from scipy.ndimage import gaussian_filter1d
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from scipy.stats import norm
 
 
 app = FastAPI()
