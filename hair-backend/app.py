@@ -705,7 +705,7 @@ async def multifield_calc(params: Parameters):
         
         # Seeds (same as you had)
         Nseeds_per_nozzle = 60
-        seed_radius = 0.1
+        seed_radius = 0.2
         seeds = []
         for (xn, yn, zn) in nozzle_positions:
             angles = np.linspace(0, 2*np.pi, Nseeds_per_nozzle, endpoint=False)
