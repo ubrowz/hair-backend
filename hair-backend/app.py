@@ -473,7 +473,8 @@ async def field_calc(params: Parameters):
 
     return StreamingResponse(buf, media_type="image/png")
 
-from scipy.stats.norm import pdf
+from scipy.stats import norm
+pdf = norm.pdf
 
 @app.post("/multiflds/")
 async def multifield_calc(params: Parameters):
