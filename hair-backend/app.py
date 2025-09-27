@@ -670,7 +670,7 @@ async def multifield_calc(params: Parameters):
     
     
     
-    # --- 2D slice with field strength + field lines in x–z plane (y=0) ---
+    # --- 2D slice with field strength + field lines in x–z plane (y=y_slice) ---
 
     if slice_choice == 0:  # x-z
     
@@ -707,7 +707,7 @@ async def multifield_calc(params: Parameters):
         interp_Ez_xz = RegularGridInterpolator((z_vals, x_vals), Ez_slice,
                                                bounds_error=False, fill_value=0.0)
         
-        # Seeds (same as you had)
+        # Seeds
         Nseeds_per_nozzle = 180
         seed_radius = 0.2
         seeds = []
@@ -720,21 +720,16 @@ async def multifield_calc(params: Parameters):
         
         # Integrate streamlines using interpolators
         hits = []
-        path_lengths = []
         total = 0
         max_steps = 2000
         ds = 0.1   # step length (tune to your units)
         
-        # Parameters for jet spreading
-        k_sigma = 0.02     # scaling factor (tune!)
-        alpha = 0.5        # exponent (0.5 ~ sqrt law, 1.0 = linear)
                 
         x_min, x_max = x_vals[0], x_vals[-1]
         z_min, z_max = z_vals[0], z_vals[-1]
         
         for (xs, zs) in seeds:
             x, z = float(xs), float(zs)
-            path_length = 0.0 
             for _ in range(max_steps):
                 Ex = float(interp_Ex_xz((z, x)))   # note order (z, x)
                 Ez = float(interp_Ez_xz((z, x)))
@@ -746,16 +741,14 @@ async def multifield_calc(params: Parameters):
                 dz = (Ez / norm1) * ds
                 x += dx
                 z += dz
-                path_length += ds  # accumulate travel length
         
                 # If outside the plotting domain, stop (escaped)
                 if (x < x_min - 1.0) or (x > x_max + 1.0) or (z < z_min - 1.0) or (z > z_max + 1.0):
                     break
         
                 # Rod hit check (x–z slice): z close to rod_z and x within rod length
-                if (abs(z - rod_z) <= rod_diameter/2) and (-rod_length/2.0 <= x <= rod_length/2.0):
+                if (abs(z - rod_z) <= rod_diameter/2) and (-rod_length/2.0 <= x <= rod_length/2.0) and (abs(y0 - 0.0) <= rod_diameter/2.0):
                     hits.append((x, z))
-                    path_lengths.append(path_length)
                     break
             total += 1
         
@@ -790,23 +783,7 @@ async def multifield_calc(params: Parameters):
             #print(f"[Metrics] Hit density histogram (rod length): {hist.tolist()}")
             # optionally also print a few raw x hits for debugging:
             # print("raw hit x positions (first 20):", np.array(hit_xs)[:20])  
-            
-        if False:
-            # Bin centers
-            n_bins = 100
-            bin_edges = np.linspace(-rod_length/2.0, rod_length/2.0, n_bins+1)
-            bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
-            deposition = np.zeros_like(bin_centers, dtype=float)
-        
-            # Add Gaussian from each hit
-            for (x_hit, z_hit), L in zip(hits, path_lengths):
-                sigma = k_sigma * (L ** alpha)
-                deposition += pdf(bin_centers, loc=x_hit, scale=sigma)
-        
-            # Normalize
-            if deposition.sum() > 0:
-                deposition /= deposition.sum()
-            
+                        
                 
         # Plot heatmap of field strength
         fig2, ax2 = plt.subplots(figsize=(7, 5))
@@ -846,11 +823,11 @@ async def multifield_calc(params: Parameters):
         if hits:
             # Add second y-axis for histogram overlay
             ax_hist = ax2.twinx()
-            #hist_smooth = gaussian_filter1d(hist_density, sigma=2)
-            ax_hist.plot(bin_centers, hist_smooth_density, color="black", linewidth=2, label="Hit density")
+            hist_smooth_density_gaussian = gaussian_filter1d(hist_smooth_density, sigma=2)
+            ax_hist.plot(bin_centers, hist_smooth_density_gaussian, color="black", linewidth=2, label="Hit density")
 #            ax_hist.plot(bin_centers, deposition, color="black", linewidth=2, label="Hit density")
             ax_hist.set_ylabel("Hit density (fraction)", color="black")
-            ax_hist.set_ylim(0, np.max(hist_smooth_density) *1.2 )  # Max bar = 50% of plot height
+            ax_hist.set_ylim(0, np.max(hist_smooth_density_gaussian) *1.2 )  # Max bar = 50% of plot height
             ax_hist.tick_params(axis="y", labelcolor="black")
             # Add text at specific coordinates
             ax_hist.text(
@@ -858,6 +835,7 @@ async def multifield_calc(params: Parameters):
                 f"Field efficiency: {efficiency:.2f}", 
                 transform=ax_hist.transAxes,   # <--- important
                 fontsize=10, color="white", 
+                fontweight="bold", 
                 ha="left", va="top"
             )
         
@@ -944,7 +922,7 @@ async def multifield_calc(params: Parameters):
                     break
         
                 # Rod hit check (y–z slice): distance to rod axis
-                if (y**2 + (z - rod_z)**2) <= (rod_diameter/2)**2:
+                if (y**2 + (z - rod_z)**2) <= (rod_diameter/2)**2 and (-rod_length/2.0 <= x0 <= rod_length/2.0):
                     hits.append((y, z))
                     break
             total += 1
@@ -1003,6 +981,7 @@ async def multifield_calc(params: Parameters):
                 f"Field efficiency: {efficiency:.2f}", 
                 transform=ax3.transAxes,   # <--- important
                 fontsize=10, color="white", 
+                fontweight="bold", 
                 ha="left", va="top"
             )
         ax3.set_xlabel("y")
