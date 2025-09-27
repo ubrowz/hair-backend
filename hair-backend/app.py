@@ -1076,7 +1076,7 @@ async def multifield_calc(params: Parameters):
         
     if slice_choice == 3: #different mode showing how deposition affects rod potential
            
-        thicknesses = np.linspace(0, 2.0, 200)  # deposition thickness [mm]
+        thicknesses = np.linspace(0, 1.0, 200)  # deposition thickness [mm]
         lambdas = [0.05, 0.5, 2.0]  # mm, candidate screening lengths
         
         fig5, ax5 = plt.subplots(figsize=(6,4))
