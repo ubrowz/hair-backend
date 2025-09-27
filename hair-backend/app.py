@@ -1074,10 +1074,45 @@ async def multifield_calc(params: Parameters):
         return StreamingResponse(buf, media_type="image/png")
        
         
+    if slice_choice == 3: #different mode showing how deposition affects rod potential
+           
+        thicknesses = np.linspace(0, 2.0, 200)  # deposition thickness [mm]
+        lambdas = [0.05, 0.5, 2.0]  # mm, candidate screening lengths
         
+        fig5, ax5 = plt.subplots(figsize=(6,4))
         
+        # Primary axis: Effective potential
+        for lam in lambdas:
+            V_eff = V_rod * np.exp(-thicknesses / lam)
+            ax5.plot(thicknesses, V_eff, label=f"λ = {lam} mm")
         
+        ax5.axhline(0, color="gray", linestyle="--", linewidth=0.8)
+        ax5.set_xlabel("Deposition thickness [mm]")
+        ax5.set_ylabel("Effective rod potential [kV]")
+        ax5.set_title("Effective rod potential vs deposition thickness")
+        ax5.grid(True)
         
+        # Secondary axis: attenuation fraction
+        ax6 = ax5.twinx()
+        ax6.set_ylabel("Attenuation fraction (V_eff / V_rod)")
+        ax6.set_ylim(ax5.get_ylim()[0]/V_rod, ax5.get_ylim()[1]/V_rod)  # normalize
+        ax6.set_yticks([1.0, 0.5, 0.1, 0.01])
+        ax6.set_yticklabels(["100%", "50%", "10%", "1%"])
+        
+        # Legend
+        ax5.legend(loc="upper right")
+        
+        plt.tight_layout()
+        plt.tight_layout()
+        buf = io.BytesIO()
+        fig5.savefig(buf, format="png", dpi=150, bbox_inches="tight")
+        buf.seek(0)
+        plt.close(fig5)
+
+        return StreamingResponse(buf, media_type="image/png")
+        
+                
+                
         
         
         
