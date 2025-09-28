@@ -946,7 +946,7 @@ async def multifield_calc(params: Parameters):
                 seed_count,
                 step_size,
                 efficiency,
-                focus_value
+                focus_fwhm
                 ) 
                 VALUES(
                     $1, 
