@@ -946,7 +946,7 @@ async def multifield_calc(params: Parameters):
                 seed_count,
                 step_size,
                 efficiency,
-                focus_value,
+                focus_value
                 ) 
                 VALUES(
                     $1, 
@@ -999,7 +999,7 @@ async def multifield_calc(params: Parameters):
                 Nseeds_per_nozzle,
                 max_steps,
                 efficiency,
-                focus_value,
+                focus_value
         )
 
 
