@@ -667,8 +667,57 @@ async def multifield_calc(params: Parameters):
         return np.array([Ex + Ex_rod + Ex_p1 + Ex_p2,
                          Ey + Ey_rod + Ey_p1 + Ey_p2,
                          Ez + Ez_rod + Ez_p1 + Ez_p2])
+
+    def normalize_density_from_hist(hist, bins):
+        """Convert counts histogram to normalized density & bin centers."""
+        hist = np.asarray(hist, dtype=float)
+        bin_centers = 0.5 * (bins[:-1] + bins[1:])
+        total = hist.sum()
+        if total <= 0:
+            return bin_centers, np.zeros_like(bin_centers)
+        density = hist / total
+        return bin_centers, density
+
     
+    def fwhm_from_density(bin_centers, density, sigma_smooth=1.0):
+        """Estimate FWHM of the (smoothed) peak. Returns None if no peak."""
+        d = gaussian_filter1d(density, sigma=sigma_smooth)
+        if d.max() <= 0:
+            return None
+        half = d.max() / 2.0
+        # find contiguous region where d >= half
+        mask = d >= half
+        if not mask.any():
+            return None
+        # find leftmost and rightmost index of the largest contiguous True region
+        # prefer the region containing the global maximum
+        max_idx = np.argmax(d)
+        # find contiguous run around max_idx
+        left = max_idx
+        while left > 0 and mask[left-1]:
+            left -= 1
+        right = max_idx
+        while right < len(d)-1 and mask[right+1]:
+            right += 1
+        # convert to width in x units
+        x_left = np.interp(left, np.arange(len(bin_centers)), bin_centers)
+        x_right = np.interp(right, np.arange(len(bin_centers)), bin_centers)
+        return x_right - x_left
+
+    def focus_metrics_from_hist(hist, bins, smooth_sigma=1.0):
+        """
+        Compute a set of 'focus' metrics from a histogram (counts + bin edges).
+        Returns dict with: effective_std, fwhm, gini, entropy, kurtosis, peak_mean_ratio, fraction_center
+        """
+        bin_centers, density = normalize_density_from_hist(hist, bins)
+        # smooth density for FWHM and more robust peak detection
+        #d_smooth = gaussian_filter1d(density, sigma=smooth_sigma)
     
+        #eff_std = effective_std(bin_centers, density)
+        fwhm = fwhm_from_density(bin_centers, density, sigma_smooth=smooth_sigma)
+        
+        return fwhm
+
     
     # --- 2D slice with field strength + field lines in x–z plane (y=y_slice) ---
 
@@ -765,6 +814,8 @@ async def multifield_calc(params: Parameters):
             hist, bins = np.histogram(hit_xs, bins=24, range=(-rod_length/2.0, rod_length/2.0))
             bin_width = bins[1] - bins[0]
             bin_centers = 0.5 * (bins[:-1] + bins[1:])
+            focus_value = focus_metrics_from_hist(hist, bins)
+
             
             # --- Apply Gaussian smoothing on raw counts ---
             sigma_bins = 2.0   # in *number of bins*, not physical cm
@@ -832,9 +883,9 @@ async def multifield_calc(params: Parameters):
             # Add text at specific coordinates
             ax_hist.text(
                 0.02, 0.95, 
-                f"Field efficiency: {efficiency:.2f}", 
+                f"Field efficiency: {efficiency:.2f}\nFocus: {focus_value:.2f}", 
                 transform=ax_hist.transAxes,   # <--- important
-                fontsize=10, color="white", 
+                fontsize=10, color="black", 
                 fontweight="bold", 
                 bbox=dict(facecolor="white",   # background color
                           edgecolor="none",    # no border
@@ -983,7 +1034,7 @@ async def multifield_calc(params: Parameters):
                 0.02, 0.95, 
                 f"Field efficiency: {efficiency:.2f}", 
                 transform=ax3.transAxes,   # <--- important
-                fontsize=10, color="white", 
+                fontsize=10, color="black", 
                 fontweight="bold",
                 bbox=dict(facecolor="white",   # background color
                           edgecolor="none",    # no border
