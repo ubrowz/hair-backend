@@ -27,6 +27,8 @@ from pathlib import Path
 from scipy.interpolate import RegularGridInterpolator
 from scipy.ndimage import gaussian_filter1d
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+import asyncpg
+import os 
 
 
 
@@ -39,6 +41,17 @@ hair_segmenter_options = vision.ImageSegmenterOptions(
     output_confidence_masks=True
 )
 hair_segmenter = vision.ImageSegmenter.create_from_options(hair_segmenter_options)
+
+db_pool = None
+
+@app.on_event("startup")
+async def startup():
+    global db_pool
+    db_pool = await asyncpg.create_pool(os.environ["DATABASE_URL"])
+
+@app.on_event("shutdown")
+async def shutdown():
+    await db_pool.close()
 
 class Parameters(BaseModel):
     param1: float  
@@ -903,6 +916,92 @@ async def multifield_calc(params: Parameters):
         plt.close(fig2)
         
 #        print("Returning image, size:", buf.getbuffer().nbytes)
+
+
+        # After computing efficiency and focus, store in DB:
+        async with db_pool.acquire() as conn:
+            await conn.execute("""
+            INSERT INTO simulations(
+                V_nozzle
+                V_rod
+                rod_z
+                rod_diameter,
+                rod_length,
+                distance_nozzle_rod,
+                n_nozzles,
+                nozzles_spacing,
+                nozzles_center,
+                z_slice,
+                nozzles_shift,
+                V_shields,   
+                plate_height,
+                plate_width,
+                plate_spacing,   
+                x_slice,
+                y_slice,
+                threshold,
+                slice_choice,
+                be_release,
+                be_version,
+                seed_count,
+                step_size,
+                efficiency,
+                focus_value,
+                ) 
+                VALUES(
+                    $1, 
+                    $2, 
+                    $3,
+                    $4,
+                    $5,
+                    $6,
+                    $7,
+                    $8,
+                    $9,
+                    $10,
+                    $11, 
+                    $12, 
+                    $13,
+                    $14,
+                    $15,
+                    $16,
+                    $17,
+                    $18,
+                    $19,
+                    $20,
+                    $21,
+                    $22,
+                    $23,
+                    $24,
+                    $25
+            )""",
+                V_nozzle,
+                V_rod,
+                rod_z,
+                rod_diameter,
+                rod_length,
+                distance_nozzle_rod,
+                n_nozzles,
+                nozzles_spacing,
+                nozzles_center,
+                z_slice,
+                nozzles_shift,
+                V_shields,   
+                plate_height,
+                plate_width,
+                plate_spacing,   
+                x_slice,
+                y_slice,
+                threshold,
+                slice_choice,
+                0,
+                1,
+                Nseeds_per_nozzle,
+                max_steps,
+                efficiency,
+                focus_value,
+        )
+
 
         return StreamingResponse(buf, media_type="image/png")
      
