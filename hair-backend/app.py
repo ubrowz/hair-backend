@@ -922,9 +922,9 @@ async def multifield_calc(params: Parameters):
         async with db_pool.acquire() as conn:
             await conn.execute("""
             INSERT INTO simulations(
-                V_nozzle
-                V_rod
-                rod_z
+                V_nozzle,
+                V_rod,
+                rod_z,
                 rod_diameter,
                 rod_length,
                 distance_nozzle_rod,
