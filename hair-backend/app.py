@@ -836,6 +836,9 @@ async def multifield_calc(params: Parameters):
                 transform=ax_hist.transAxes,   # <--- important
                 fontsize=10, color="white", 
                 fontweight="bold", 
+                bbox=dict(facecolor="white",   # background color
+                          edgecolor="none",    # no border
+                          alpha=0.7),          # slightly transparent
                 ha="left", va="top"
             )
         
@@ -981,7 +984,10 @@ async def multifield_calc(params: Parameters):
                 f"Field efficiency: {efficiency:.2f}", 
                 transform=ax3.transAxes,   # <--- important
                 fontsize=10, color="white", 
-                fontweight="bold", 
+                fontweight="bold",
+                bbox=dict(facecolor="white",   # background color
+                          edgecolor="none",    # no border
+                          alpha=0.7),           # slightly transparent
                 ha="left", va="top"
             )
         ax3.set_xlabel("y")
