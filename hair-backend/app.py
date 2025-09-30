@@ -1010,7 +1010,7 @@ async def multifield_calc(params: Parameters):
                 slice_choice,
                 0,
                 1,
-                Nseeds_per_nozzle,
+                500,
                 max_steps,
                 efficiency,
                 focus_value
