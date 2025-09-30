@@ -42,6 +42,13 @@ hair_segmenter_options = vision.ImageSegmenterOptions(
 )
 hair_segmenter = vision.ImageSegmenter.create_from_options(hair_segmenter_options)
 
+# --- Global angular seed cloud ---
+Nseeds_per_nozzle = 500   # increase if you want smoother curves
+SEED_RADIUS = 0.2         # same radius you used before
+_rng = np.random.default_rng(42)  # fixed RNG seed for reproducibility
+ANGLES = _rng.uniform(0, 2*np.pi, size=Nseeds_per_nozzle)
+
+
 db_pool = None
 
 @app.on_event("startup")
@@ -770,15 +777,22 @@ async def multifield_calc(params: Parameters):
                                                bounds_error=False, fill_value=0.0)
         
         # Seeds
-        Nseeds_per_nozzle = 180
-        seed_radius = 0.2
+        # Nseeds_per_nozzle = 180
+        # seed_radius = 0.2
+        # seeds = []
+        # for (xn, yn, zn) in nozzle_positions:
+        #     angles = np.linspace(0, 2*np.pi, Nseeds_per_nozzle, endpoint=False)
+        #     for a in angles:
+        #         xs = xn + seed_radius * np.cos(a)
+        #         zs = zn + seed_radius * np.sin(a)
+        #         seeds.append((xs, zs))
+
+        # Seeds (reused angles, shifted to each nozzle position)
         seeds = []
         for (xn, yn, zn) in nozzle_positions:
-            angles = np.linspace(0, 2*np.pi, Nseeds_per_nozzle, endpoint=False)
-            for a in angles:
-                xs = xn + seed_radius * np.cos(a)
-                zs = zn + seed_radius * np.sin(a)
-                seeds.append((xs, zs))
+            xs = xn + SEED_RADIUS * np.cos(ANGLES)
+            zs = zn + SEED_RADIUS * np.sin(ANGLES)
+            seeds.extend(zip(xs, zs))
         
         # Integrate streamlines using interpolators
         hits = []
