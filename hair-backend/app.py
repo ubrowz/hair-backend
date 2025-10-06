@@ -659,19 +659,41 @@ async def multifield_calc(params: Parameters):
             Ez += V_rod * rz / r3
     
         # 3️⃣ Plates (if enabled)
+        # def plate_field(x, y, z, plate_center, V_plate):
+        #     xp, yp, zp = plate_center
+        #     Ex_p = Ey_p = Ez_p = 0.0
+        #     ys = np.linspace(yp - plate_height / 2, yp + plate_height / 2, Ny)
+        #     zs = np.linspace(zp - plate_width / 2, zp + plate_width / 2, Nz)
+        #     for yi in ys:
+        #         for zi in zs:
+        #             rx, ry, rz = x - xp, y - yi, z - zi
+        #             r3 = (rx**2 + ry**2 + rz**2 + soft_a**2)**1.5
+        #             Ex_p += V_plate * rx / r3
+        #             Ey_p += V_plate * ry / r3
+        #             Ez_p += V_plate * rz / r3
+        #     return Ex_p, Ey_p, Ez_p
+
+
         def plate_field(x, y, z, plate_center, V_plate):
             xp, yp, zp = plate_center
-            Ex_p = Ey_p = Ez_p = 0.0
-            ys = np.linspace(yp - plate_height / 2, yp + plate_height / 2, Ny)
-            zs = np.linspace(zp - plate_width / 2, zp + plate_width / 2, Nz)
+            Ny, Nz = 10, 10
+            ys = np.linspace(yp - plate_height/2, yp + plate_height/2, Ny)
+            zs = np.linspace(zp - plate_width/2, zp + plate_width/2, Nz)
+            dy = ys[1] - ys[0]
+            dz = zs[1] - zs[0]
+            dA = dy * dz  # area of each patch
+        
+            Ex_p, Ey_p, Ez_p = 0.0, 0.0, 0.0
             for yi in ys:
                 for zi in zs:
-                    rx, ry, rz = x - xp, y - yi, z - zi
-                    r3 = (rx**2 + ry**2 + rz**2 + soft_a**2)**1.5
-                    Ex_p += V_plate * rx / r3
-                    Ey_p += V_plate * ry / r3
-                    Ez_p += V_plate * rz / r3
+                    rx, ry, rz = (x - xp), (y - yi), (z - zi)
+                    r3 = (rx**2 + ry**2 + rz**2 + 1e-9)**1.5
+                    Ex_p += dA * V_plate * rx / r3
+                    Ey_p += dA * V_plate * ry / r3
+                    Ez_p += dA * V_plate * rz / r3
+        
             return Ex_p, Ey_p, Ez_p
+
     
         Ex_p1 = Ey_p1 = Ez_p1 = Ex_p2 = Ey_p2 = Ez_p2 = 0.0
         if plate_height != 0.0 and plate_width != 0.0:
