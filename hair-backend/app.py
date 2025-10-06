@@ -664,7 +664,8 @@ async def multifield_calc(params: Parameters):
         Vdiff = abs(V_nozzle - V_rod)
         d_gap = abs(nozzle_z - rod_z)
         E_expected = Vdiff / d_gap
-    
+
+        global alpha_scale     
         if 'alpha_scale' not in globals():
             # Evaluate unscaled nozzle–rod field at mid-gap center
             z_mid = (nozzle_z + rod_z) / 2
@@ -718,24 +719,24 @@ async def multifield_calc(params: Parameters):
         Ey_total = Ey_scaled + Ey_p1 + Ey_p2
         Ez_total = Ez_scaled + Ez_p1 + Ez_p2
     
-        # --- 4️⃣ Automatic scaling to realistic field magnitude ---
-        # Compute expected mid-gap average field (in V/m)
-        Vdiff = abs(V_nozzle - V_rod)
-        d_gap = abs(nozzle_z - rod_z)
-        E_expected = Vdiff / d_gap
+        # # --- 4️⃣ Automatic scaling to realistic field magnitude ---
+        # # Compute expected mid-gap average field (in V/m)
+        # Vdiff = abs(V_nozzle - V_rod)
+        # d_gap = abs(nozzle_z - rod_z)
+        # E_expected = Vdiff / d_gap
     
-        # Instead of recursion, we'll cache scaling factor globally:
-        global alpha_scale
-        if 'alpha_scale' not in globals():
-            # measure the unscaled field at the mid-gap center
-            E_test = np.linalg.norm([Ex_total, Ey_total, Ez_total])
-            alpha_scale = E_expected / (E_test + 1e-12)
-            print(f"[Scaling] α = {alpha_scale:.3e} to match E ≈ {E_expected:.3e} V/m")
+        # # Instead of recursion, we'll cache scaling factor globally:
+        # global alpha_scale
+        # if 'alpha_scale' not in globals():
+        #     # measure the unscaled field at the mid-gap center
+        #     E_test = np.linalg.norm([Ex_total, Ey_total, Ez_total])
+        #     alpha_scale = E_expected / (E_test + 1e-12)
+        #     print(f"[Scaling] α = {alpha_scale:.3e} to match E ≈ {E_expected:.3e} V/m")
     
-        # Apply the scaling
-        Ex_total *= alpha_scale
-        Ey_total *= alpha_scale
-        Ez_total *= alpha_scale
+        # # Apply the scaling
+        # Ex_total *= alpha_scale
+        # Ey_total *= alpha_scale
+        # Ez_total *= alpha_scale
     
         return np.array([Ex_total, Ey_total, Ez_total])
         
