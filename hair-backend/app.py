@@ -833,12 +833,12 @@ async def multifield_calc(params: Parameters):
         
         if hits:
             hit_xs = [x for (x, z) in hits]
-            hist, bins = np.histogram(hit_xs, bins=60, range=(-rod_length/2.0, rod_length/2.0))
-            bin_width = bins[1] - bins[0]
-            bin_centers = 0.5 * (bins[:-1] + bins[1:])
+            # hist, bins = np.histogram(hit_xs, bins=60, range=(-rod_length/2.0, rod_length/2.0))
+            # bin_width = bins[1] - bins[0]
+            # bin_centers = 0.5 * (bins[:-1] + bins[1:])
             
             # Raw histogram (counts, not normalized yet)
-            hist, bins = np.histogram(hit_xs, bins=24, range=(-rod_length/2.0, rod_length/2.0))
+            hist, bins = np.histogram(hit_xs, bins=60, range=(-rod_length/2.0, rod_length/2.0))
             bin_width = bins[1] - bins[0]
             bin_centers = 0.5 * (bins[:-1] + bins[1:])
             focus_value = focus_metrics_from_hist(hist, bins)
@@ -1009,7 +1009,7 @@ async def multifield_calc(params: Parameters):
                 threshold,
                 slice_choice,
                 0,
-                1,
+                2,
                 500,
                 max_steps,
                 efficiency,
