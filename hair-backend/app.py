@@ -748,8 +748,8 @@ async def multifield_calc(params: Parameters):
         y0 = y_slice
         
         x_vals = np.linspace(-rod_length/2-2.0, rod_length/2+2.0, nx)
-        z_vals = np.linspace(-2,
-                             nozzle_z + 0.5*distance_nozzle_rod, nz)
+        z_vals = np.linspace(-2.0+rod_z,
+                             nozzle_z + 2.0, nz)
         
         
         X, Z = np.meshgrid(x_vals, z_vals)
