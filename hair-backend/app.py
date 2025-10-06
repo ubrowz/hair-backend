@@ -623,10 +623,100 @@ async def multifield_calc(params: Parameters):
                 res[value >= self.threshold] = 1.0
             return res
         
+    def electric_field(x, y, z):
+        """
+        Computes the electric field (Ex, Ey, Ez) from:
+        - nozzles (treated as point-like charged tips)
+        - grounded rod (line of charge)
+        - optional plates (if nonzero size)
+        
+        Now scaled so that the overall field magnitude depends correctly on
+        the potential difference (V_nozzle - V_rod) and on the nozzle–rod distance.
+        """
+        # --- Constants ---
+        epsilon0 = 8.854e-12  # vacuum permittivity [F/m]
+        k = 1.0 / (4 * np.pi * epsilon0)  # Coulomb constant
+        cm_to_m = 1e-2  # your geometry is in cm, convert to meters
+        
+        # Convert positions to meters for physics-based scaling
+        x_m = x * cm_to_m
+        y_m = y * cm_to_m
+        z_m = z * cm_to_m
+        
+        rod_z_m = rod_z * cm_to_m
+        nozzle_positions_m = [(xn * cm_to_m, yn * cm_to_m, zn * cm_to_m)
+                              for (xn, yn, zn) in nozzle_positions]
+        
+        # Effective voltage difference
+        V_diff = (V_nozzle - V_rod) * 1e3  # convert kV → V
+    
+        # Typical nozzle–rod separation in meters
+        if len(nozzle_positions_m) > 0:
+            nozzle_z_m = np.mean([zn for (_, _, zn) in nozzle_positions_m])
+            d = abs(nozzle_z_m - rod_z_m)
+        else:
+            d = 0.01  # fallback 1 cm
+    
+        # Effective charge chosen so that E_avg ≈ V_diff / d
+        # We tune q_eff so that at a distance ≈ d/2 the field ≈ V_diff/d
+        q_eff = (V_diff * d / k) * 1e-4  # tuning factor to match typical field scale
+    
+        # Initialize
+        Ex, Ey, Ez = 0.0, 0.0, 0.0
+    
+        # --- Nozzle contribution (positive) ---
+        for (xn, yn, zn) in nozzle_positions_m:
+            rx, ry, rz = (x_m - xn), (y_m - yn), (z_m - zn)
+            r3 = (rx**2 + ry**2 + rz**2 + 1e-18)**1.5
+            Ex += k * q_eff * rx / r3
+            Ey += k * q_eff * ry / r3
+            Ez += k * q_eff * rz / r3
+    
+        # --- Rod contribution (opposite polarity) ---
+        N_seg = 50
+        xs = np.linspace(-rod_length / 2, rod_length / 2, N_seg) * cm_to_m
+        for xi in xs:
+            rx, ry, rz = (x_m - xi), (y_m), (z_m - rod_z_m)
+            r3 = (rx**2 + ry**2 + rz**2 + 1e-18)**1.5
+            Ex -= k * q_eff * rx / r3
+            Ey -= k * q_eff * ry / r3
+            Ez -= k * q_eff * rz / r3
+    
+        # --- Plate contributions (if defined) ---
+        Ex_p1 = Ey_p1 = Ez_p1 = 0.0
+        Ex_p2 = Ey_p2 = Ez_p2 = 0.0
+    
+        def plate_field(x, y, z, plate_center, V_plate):
+            xp, yp, zp = plate_center
+            Ny, Nz = 10, 10
+            ys = np.linspace(yp - plate_height / 2, yp + plate_height / 2, Ny)
+            zs = np.linspace(zp - plate_width / 2, zp + plate_width / 2, Nz)
+            Ex_p = Ey_p = Ez_p = 0.0
+            for yi in ys:
+                for zi in zs:
+                    rx, ry, rz = (x - xp), (y - yi), (z - zi)
+                    r3 = (rx**2 + ry**2 + rz**2 + 1e-9)**1.5
+                    Ex_p += V_plate * rx / r3
+                    Ey_p += V_plate * ry / r3
+                    Ez_p += V_plate * rz / r3
+            return Ex_p, Ey_p, Ez_p
+    
+        if (plate_height != 0.0) and (plate_width != 0.0):
+            plate1_center = plate1_position[0]
+            plate2_center = plate2_position[0]
+            Ex_p1, Ey_p1, Ez_p1 = plate_field(x, y, z, plate1_center, V_plate1)
+            Ex_p2, Ey_p2, Ez_p2 = plate_field(x, y, z, plate2_center, V_plate2)
+    
+        # Sum all
+        Ex_total = Ex + Ex_p1 + Ex_p2
+        Ey_total = Ey + Ey_p1 + Ey_p2
+        Ez_total = Ez + Ez_p1 + Ez_p2
+    
+        return np.array([Ex_total, Ey_total, Ez_total])
     
     
     # Electric field (nozzle + rod)
-    def electric_field(x, y, z):
+    def electric_field_old(x, y, z):
         
         # Start with zero field
         Ex, Ey, Ez = 0.0, 0.0, 0.0
