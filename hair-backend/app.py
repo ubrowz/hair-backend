@@ -625,6 +625,87 @@ async def multifield_calc(params: Parameters):
         
     def electric_field(x, y, z):
         """
+        Compute the total electric field at (x, y, z)
+        from nozzle(s), grounded rod, and (optional) plates.
+        Includes:
+          - Soft regularization radius (soft_a)
+          - Auto scaling of field strength to match global Vdiff/d
+        """
+    
+        # --- PARAMETERS ---
+        soft_a = 1e-4  # [m] smoothing radius to avoid singularities
+        N_seg = 50     # segments for rod
+        Ny, Nz = 10, 10  # plate discretization
+        epsilon0 = 8.854e-12
+    
+        # --- BASE FIELD (unscaled) ---
+        Ex, Ey, Ez = 0.0, 0.0, 0.0
+    
+        # 1️⃣ Nozzle contribution (point charge approximation)
+        for (xn, yn, zn) in nozzle_positions:
+            rx, ry, rz = x - xn, y - yn, z - zn
+            r3 = (rx**2 + ry**2 + rz**2 + soft_a**2)**1.5
+            Ex += V_nozzle * rx / r3
+            Ey += V_nozzle * ry / r3
+            Ez += V_nozzle * rz / r3
+    
+        # 2️⃣ Rod contribution (line of charge along x-axis)
+        xs = np.linspace(-rod_length / 2, rod_length / 2, N_seg)
+        for xi in xs:
+            rx, ry, rz = x - xi, y, z - rod_z
+            r3 = (rx**2 + ry**2 + rz**2 + soft_a**2)**1.5
+            Ex += V_rod * rx / r3
+            Ey += V_rod * ry / r3
+            Ez += V_rod * rz / r3
+    
+        # 3️⃣ Plates (if enabled)
+        def plate_field(x, y, z, plate_center, V_plate):
+            xp, yp, zp = plate_center
+            Ex_p = Ey_p = Ez_p = 0.0
+            ys = np.linspace(yp - plate_height / 2, yp + plate_height / 2, Ny)
+            zs = np.linspace(zp - plate_width / 2, zp + plate_width / 2, Nz)
+            for yi in ys:
+                for zi in zs:
+                    rx, ry, rz = x - xp, y - yi, z - zi
+                    r3 = (rx**2 + ry**2 + rz**2 + soft_a**2)**1.5
+                    Ex_p += V_plate * rx / r3
+                    Ey_p += V_plate * ry / r3
+                    Ez_p += V_plate * rz / r3
+            return Ex_p, Ey_p, Ez_p
+    
+        Ex_p1 = Ey_p1 = Ez_p1 = Ex_p2 = Ey_p2 = Ez_p2 = 0.0
+        if plate_height != 0.0 and plate_width != 0.0:
+            Ex_p1, Ey_p1, Ez_p1 = plate_field(x, y, z, plate1_position[0], V_plate1)
+            Ex_p2, Ey_p2, Ez_p2 = plate_field(x, y, z, plate2_position[0], V_plate2)
+    
+        # --- Combine contributions ---
+        Ex_total = Ex + Ex_p1 + Ex_p2
+        Ey_total = Ey + Ey_p1 + Ey_p2
+        Ez_total = Ez + Ez_p1 + Ez_p2
+    
+        # --- 4️⃣ Automatic scaling to realistic field magnitude ---
+        # Compute expected mid-gap average field (in V/m)
+        Vdiff = abs(V_nozzle - V_rod)
+        d_gap = abs(nozzle_z - rod_z)
+        E_expected = Vdiff / d_gap
+    
+        # Instead of recursion, we'll cache scaling factor globally:
+        global alpha_scale
+        if 'alpha_scale' not in globals():
+            # measure the unscaled field at the mid-gap center
+            E_test = np.linalg.norm([Ex_total, Ey_total, Ez_total])
+            alpha_scale = E_expected / (E_test + 1e-12)
+            print(f"[Scaling] α = {alpha_scale:.3e} to match E ≈ {E_expected:.3e} V/m")
+    
+        # Apply the scaling
+        Ex_total *= alpha_scale
+        Ey_total *= alpha_scale
+        Ez_total *= alpha_scale
+    
+        return np.array([Ex_total, Ey_total, Ez_total])
+        
+    def electric_field_old2(x, y, z):
+        """
         Computes the electric field (Ex, Ey, Ez) from:
         - nozzles (treated as point-like charged tips)
         - grounded rod (line of charge)
