@@ -827,6 +827,29 @@ async def multifield_calc(params: Parameters):
         fwhm = fwhm_from_density(bin_centers, density, sigma_smooth=smooth_sigma)
         
         return fwhm
+    
+    def field_stats_around_rod(sample_radius = 0.002,  # meters (e.g. 2 mm)
+                           nrad=36, nlen=20):
+        cm2m = 1e-2
+        # sample ring around rod center (x across rod length, y radial around rod surface)
+        x_samples = np.linspace(-rod_length/2, rod_length/2, nlen) * cm2m
+        thetas = np.linspace(0, 2*np.pi, nrad, endpoint=False)
+        Evals = []
+        for xi in x_samples:
+            for th in thetas:
+                # point just outside rod surface
+                xr = xi
+                yr = (rod_diameter/2 + sample_radius) * cm2m * np.cos(th)
+                zr = rod_z * cm2m + (rod_diameter/2 + sample_radius) * cm2m * np.sin(th)
+                Ex, Ey, Ez = electric_field(xr/cm2m, yr/cm2m, zr/cm2m)  # if your electric_field uses cm input
+                Evals.append(np.linalg.norm([Ex, Ey, Ez]))
+        Evals = np.array(Evals)
+        print("Near-rod field (min, mean, 90p, max):", np.min(Evals), np.mean(Evals), np.percentile(Evals, 90), np.max(Evals))
+        # mid-gap centerline
+        mid_z_cm = (nozzle_positions[0][2] + rod_z)/2.0
+        Exc, Eyc, Ezc = electric_field(0.0, 0.0, mid_z_cm)
+        print("Centerline E_mid |E|:", np.linalg.norm([Exc, Eyc, Ezc]))
+
 
     
     # --- 2D slice with field strength + field lines in x–z plane (y=y_slice) ---
@@ -858,6 +881,7 @@ async def multifield_calc(params: Parameters):
                 Ez_slice[j, i] = E[2]
                 E_slice[j, i] = np.sqrt(E[0]**2 + E[2]**2)
 
+        field_stats_around_rod(sample_radius=0.001)  # 1 mm
 
         # --- Prepare 2D interpolators for x–z slice ---
         # Ex_slice and Ez_slice have shape (nz, nx) with coords (z_vals, x_vals)
