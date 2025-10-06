@@ -657,23 +657,36 @@ async def multifield_calc(params: Parameters):
             Ex += V_rod * rx / r3
             Ey += V_rod * ry / r3
             Ez += V_rod * rz / r3
+
+        # ---------------------------------------------------------
+        # 🧭 3️⃣ Compute alpha scaling before adding plates
+        # ---------------------------------------------------------
+        Vdiff = abs(V_nozzle - V_rod)
+        d_gap = abs(nozzle_z - rod_z)
+        E_expected = Vdiff / d_gap
+    
+        if 'alpha_scale' not in globals():
+            # Evaluate unscaled nozzle–rod field at mid-gap center
+            z_mid = (nozzle_z + rod_z) / 2
+            # Take the center between nozzle and rod along x,y = 0 plane
+            E_mid_vec = np.array([
+                V_nozzle * (0 - nozzle_positions[0][0]) / ((nozzle_positions[0][0])**2 + (z_mid - nozzle_positions[0][2])**2 + soft_a**2)**1.5
+                + V_rod * (0) / ((z_mid - rod_z)**2 + soft_a**2)**1.5,
+                0.0,
+                V_nozzle * (z_mid - nozzle_positions[0][2]) / ((nozzle_positions[0][0])**2 + (z_mid - nozzle_positions[0][2])**2 + soft_a**2)**1.5
+                + V_rod * (z_mid - rod_z) / ((z_mid - rod_z)**2 + soft_a**2)**1.5
+            ])
+            E_mid = np.linalg.norm(E_mid_vec)
+            alpha_scale = E_expected / (E_mid + 1e-12)
+            print(f"[Scaling] α = {alpha_scale:.3e} to match E ≈ {E_expected:.3e} V/m")    
+
+        # Apply scaling to the base field (no plates)
+        Ex_scaled = Ex * alpha_scale
+        Ey_scaled = Ey * alpha_scale
+        Ez_scaled = Ez * alpha_scale
+
     
         # 3️⃣ Plates (if enabled)
-        # def plate_field(x, y, z, plate_center, V_plate):
-        #     xp, yp, zp = plate_center
-        #     Ex_p = Ey_p = Ez_p = 0.0
-        #     ys = np.linspace(yp - plate_height / 2, yp + plate_height / 2, Ny)
-        #     zs = np.linspace(zp - plate_width / 2, zp + plate_width / 2, Nz)
-        #     for yi in ys:
-        #         for zi in zs:
-        #             rx, ry, rz = x - xp, y - yi, z - zi
-        #             r3 = (rx**2 + ry**2 + rz**2 + soft_a**2)**1.5
-        #             Ex_p += V_plate * rx / r3
-        #             Ey_p += V_plate * ry / r3
-        #             Ez_p += V_plate * rz / r3
-        #     return Ex_p, Ey_p, Ez_p
-
-
         def plate_field(x, y, z, plate_center, V_plate):
             xp, yp, zp = plate_center
             Ny, Nz = 10, 10
@@ -701,9 +714,9 @@ async def multifield_calc(params: Parameters):
             Ex_p2, Ey_p2, Ez_p2 = plate_field(x, y, z, plate2_position[0], V_plate2)
     
         # --- Combine contributions ---
-        Ex_total = Ex + Ex_p1 + Ex_p2
-        Ey_total = Ey + Ey_p1 + Ey_p2
-        Ez_total = Ez + Ez_p1 + Ez_p2
+        Ex_total = Ex_scaled + Ex_p1 + Ex_p2
+        Ey_total = Ey_scaled + Ey_p1 + Ey_p2
+        Ez_total = Ez_scaled + Ez_p1 + Ez_p2
     
         # --- 4️⃣ Automatic scaling to realistic field magnitude ---
         # Compute expected mid-gap average field (in V/m)
