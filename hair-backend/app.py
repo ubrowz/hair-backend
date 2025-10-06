@@ -660,6 +660,7 @@ async def multifield_calc(params: Parameters):
         # Effective charge chosen so that E_avg ≈ V_diff / d
         # We tune q_eff so that at a distance ≈ d/2 the field ≈ V_diff/d
         q_eff = (V_diff * d / k) * 1e-4  # tuning factor to match typical field scale
+        soft_a = 1e-4
     
         # Initialize
         Ex, Ey, Ez = 0.0, 0.0, 0.0
@@ -667,7 +668,7 @@ async def multifield_calc(params: Parameters):
         # --- Nozzle contribution (positive) ---
         for (xn, yn, zn) in nozzle_positions_m:
             rx, ry, rz = (x_m - xn), (y_m - yn), (z_m - zn)
-            r3 = (rx**2 + ry**2 + rz**2 + 1e-18)**1.5
+            r3 = (rx**2 + ry**2 + rz**2 + soft_a)**1.5
             Ex += k * q_eff * rx / r3
             Ey += k * q_eff * ry / r3
             Ez += k * q_eff * rz / r3
@@ -677,7 +678,7 @@ async def multifield_calc(params: Parameters):
         xs = np.linspace(-rod_length / 2, rod_length / 2, N_seg) * cm_to_m
         for xi in xs:
             rx, ry, rz = (x_m - xi), (y_m), (z_m - rod_z_m)
-            r3 = (rx**2 + ry**2 + rz**2 + 1e-18)**1.5
+            r3 = (rx**2 + ry**2 + rz**2 + soft_a)**1.5
             Ex -= k * q_eff * rx / r3
             Ey -= k * q_eff * ry / r3
             Ez -= k * q_eff * rz / r3
@@ -695,7 +696,7 @@ async def multifield_calc(params: Parameters):
             for yi in ys:
                 for zi in zs:
                     rx, ry, rz = (x - xp), (y - yi), (z - zi)
-                    r3 = (rx**2 + ry**2 + rz**2 + 1e-9)**1.5
+                    r3 = (rx**2 + ry**2 + rz**2 + soft_a)**1.5
                     Ex_p += V_plate * rx / r3
                     Ey_p += V_plate * ry / r3
                     Ez_p += V_plate * rz / r3
