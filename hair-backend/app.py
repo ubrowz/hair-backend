@@ -1276,7 +1276,8 @@ async def multifield_calc(params: Parameters):
 #            ax_hist.plot(bin_centers, hist_smooth_density_gaussian, color="black", linewidth=2, label="Total hit density")
 #            ax_hist.plot(bin_centers, deposition, color="black", linewidth=2, label="Hit density")
             ax_hist.set_ylabel("Hit density (fraction)", color="black")
-            ax_hist.set_ylim(0, np.max(hist_smooth_density_gaussian) *1.2 )  # Max bar = 50% of plot height
+            #ax_hist.set_ylim(0, np.max(hist_smooth_density_gaussian) *1.2 )  # Max bar = 50% of plot height
+            #ax_hist.set_ylim(0, 0.2)
             ax_hist.tick_params(axis="y", labelcolor="black")
             # Add text at specific coordinates
             # ax_hist.text(
@@ -1358,8 +1359,10 @@ async def multifield_calc(params: Parameters):
                           alpha=0.7),          # slightly transparent
                 ha="left", va="top"
             )
+            ax_hist.set_ylim(0, max_peak_height *1.2 )  # Max bar = 50% of plot height
+           
 
-        #ax2.set_ylim(0, 0.5)
+
         ax2.set_xlabel("x")
         ax2.set_ylabel("z")
         ax2.set_title(f"2D field strength and field lines (y={y0:.1f} plane)")
