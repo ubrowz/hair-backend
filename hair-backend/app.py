@@ -1306,6 +1306,7 @@ async def multifield_calc(params: Parameters):
             # Determine total curve peak for scaling
             total_peak = np.max(hist_smooth_density_gaussian) + 1e-12
             nozzle_peaks = []
+            peak_heights = []
 
 
             for nozzle_id in np.unique(hit_ids):
@@ -1323,13 +1324,14 @@ async def multifield_calc(params: Parameters):
 
 
                 # Scale relative to total density for visual consistency
-                nozzle_peak = np.max(smooth_counts) + 1e-12
-                scale_factor = total_peak * 0.6 / nozzle_peak  # 0.6 → leaves space for global curve
+                #nozzle_peak = np.max(smooth_counts) + 1e-12
+                peak_heights.append(np.max(smooth_counts))
+                #scale_factor = total_peak * 0.6 / nozzle_peak  # 0.6 → leaves space for global curve
 
                 #scale_factor = np.max(hist_smooth_density_gaussian) / (np.max(smooth_counts) + 1e-9)
                 ax_hist.plot(
                     centers,
-                    smooth_counts * scale_factor,  # 0.6 → visually fit below total curve
+                    smooth_counts, #* scale_factor,  # 0.6 → visually fit below total curve
                     linewidth=1.5,
                     color="black",
                     label=f"Nozzle {nozzle_id}",
@@ -1342,10 +1344,12 @@ async def multifield_calc(params: Parameters):
             left_peak = nozzle_peaks[0]
             right_peak = nozzle_peaks[-1]
             peak_distance = right_peak[1] - left_peak[1]
+            peak_heights = np.array(peak_heights)
+            max_peak_height = np.max(peak_heights)
 
             ax_hist.text(
                 0.02, 0.95, 
-                f"Field efficiency: {efficiency:.2f}\nFocus: {peak_distance:.2f}", 
+                f"Max hit density: {max_peak_height:.2f}\nFocus: {peak_distance:.2f}", 
                 transform=ax_hist.transAxes,   # <--- important
                 fontsize=10, color="black", 
                 fontweight="bold", 
@@ -1354,7 +1358,8 @@ async def multifield_calc(params: Parameters):
                           alpha=0.7),          # slightly transparent
                 ha="left", va="top"
             )
-       
+
+        ax2.set_ylim(0, 0.5)
         ax2.set_xlabel("x")
         ax2.set_ylabel("z")
         ax2.set_title(f"2D field strength and field lines (y={y0:.1f} plane)")
@@ -1447,7 +1452,7 @@ async def multifield_calc(params: Parameters):
                 4,
                 500,
                 max_steps,
-                efficiency,
+                max_peak_height,
                 peak_distance
         )
 
