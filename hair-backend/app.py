@@ -1133,12 +1133,21 @@ async def multifield_calc(params: Parameters):
         #         seeds.append((xs, zs))
 
         # Seeds (reused angles, shifted to each nozzle position)
+        # seeds = []
+        # for (xn, yn, zn) in nozzle_positions:
+        #     xs = xn + SEED_RADIUS * np.cos(ANGLES)
+        #     zs = zn + SEED_RADIUS * np.sin(ANGLES)
+        #     seeds.extend(zip(xs, zs))
+
         seeds = []
-        for (xn, yn, zn) in nozzle_positions:
+        seed_nozzle_ids = []
+        
+        for nozzle_id, (xn, yn, zn) in enumerate(nozzle_positions):
             xs = xn + SEED_RADIUS * np.cos(ANGLES)
             zs = zn + SEED_RADIUS * np.sin(ANGLES)
             seeds.extend(zip(xs, zs))
-        
+            seed_nozzle_ids.extend([nozzle_id] * len(ANGLES))  # tag each seed
+                
         # Integrate streamlines using interpolators
         hits = []
         total = 0
@@ -1148,8 +1157,11 @@ async def multifield_calc(params: Parameters):
                 
         x_min, x_max = x_vals[0], x_vals[-1]
         z_min, z_max = z_vals[0], z_vals[-1]
+        hit_positions = []
+        hit_ids = []
+
         
-        for (xs, zs) in seeds:
+        for ((xs, zs), nozzle_id) in zip(seeds, seed_nozzle_ids):
             x, z = float(xs), float(zs)
             for _ in range(max_steps):
                 Ex = float(interp_Ex_xz((z, x)))   # note order (z, x)
@@ -1170,6 +1182,8 @@ async def multifield_calc(params: Parameters):
                 # Rod hit check (x–z slice): z close to rod_z and x within rod length
                 if (abs(z - rod_z) <= rod_diameter/2) and (-rod_length/2.0 <= x <= rod_length/2.0) and (abs(y0 - 0.0) <= rod_diameter/2.0):
                     hits.append((x, z))
+                    hit_positions.append((x, z))
+                    hit_ids.append(nozzle_id)
                     break
             total += 1
         
@@ -1264,6 +1278,21 @@ async def multifield_calc(params: Parameters):
                           alpha=0.7),          # slightly transparent
                 ha="left", va="top"
             )
+            # Overlay per-nozzle histograms
+            hit_positions = np.array(hit_positions)
+            hit_ids = np.array(hit_ids)
+            for nozzle_id in np.unique(hit_ids):
+                mask = hit_ids == nozzle_id
+                ax_hist.hist(
+                    hit_positions[mask, 0],
+                    bins=40,
+                    alpha=0.4,
+                    label=f"Nozzle {nozzle_id}",
+                    density=True
+                )
+
+
+
         
         ax2.set_xlabel("x")
         ax2.set_ylabel("z")
