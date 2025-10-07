@@ -1324,14 +1324,14 @@ async def multifield_calc(params: Parameters):
 
 
                 # Scale relative to total density for visual consistency
-                #nozzle_peak = np.max(smooth_counts) + 1e-12
+                nozzle_peak = np.max(smooth_counts) + 1e-12
                 peak_heights.append(np.max(smooth_counts))
-                #scale_factor = total_peak * 0.6 / nozzle_peak  # 0.6 → leaves space for global curve
+                scale_factor = total_peak * 0.6 / nozzle_peak  # 0.6 → leaves space for global curve
 
                 #scale_factor = np.max(hist_smooth_density_gaussian) / (np.max(smooth_counts) + 1e-9)
                 ax_hist.plot(
                     centers,
-                    smooth_counts, #* scale_factor,  # 0.6 → visually fit below total curve
+                    smooth_counts * scale_factor,  # 0.6 → visually fit below total curve
                     linewidth=1.5,
                     color="black",
                     label=f"Nozzle {nozzle_id}",
@@ -1359,7 +1359,7 @@ async def multifield_calc(params: Parameters):
                 ha="left", va="top"
             )
 
-        ax2.set_ylim(0, 0.5)
+        #ax2.set_ylim(0, 0.5)
         ax2.set_xlabel("x")
         ax2.set_ylabel("z")
         ax2.set_title(f"2D field strength and field lines (y={y0:.1f} plane)")
