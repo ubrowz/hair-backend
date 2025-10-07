@@ -1331,7 +1331,7 @@ async def multifield_calc(params: Parameters):
                 #scale_factor = np.max(hist_smooth_density_gaussian) / (np.max(smooth_counts) + 1e-9)
                 ax_hist.plot(
                     centers,
-                    smooth_counts * scale_factor,  # 0.6 → visually fit below total curve
+                    smooth_counts, # * scale_factor,  # 0.6 → visually fit below total curve
                     linewidth=1.5,
                     color="black",
                     label=f"Nozzle {nozzle_id}",
