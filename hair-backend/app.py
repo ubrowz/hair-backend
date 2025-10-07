@@ -1261,7 +1261,7 @@ async def multifield_calc(params: Parameters):
             # Add second y-axis for histogram overlay
             ax_hist = ax2.twinx()
             hist_smooth_density_gaussian = gaussian_filter1d(hist_smooth_density, sigma=2)
-            ax_hist.plot(bin_centers, hist_smooth_density_gaussian, color="black", linewidth=2, label="Hit density")
+            ax_hist.plot(bin_centers, hist_smooth_density_gaussian, color="black", linewidth=2, label="Total hit density")
 #            ax_hist.plot(bin_centers, deposition, color="black", linewidth=2, label="Hit density")
             ax_hist.set_ylabel("Hit density (fraction)", color="black")
             ax_hist.set_ylim(0, np.max(hist_smooth_density_gaussian) *1.2 )  # Max bar = 50% of plot height
@@ -1281,14 +1281,21 @@ async def multifield_calc(params: Parameters):
             # Overlay per-nozzle histograms
             hit_positions = np.array(hit_positions)
             hit_ids = np.array(hit_ids)
+            bins = np.linspace(np.min(hit_positions[:, 0]), np.max(hit_positions[:, 0]), 40)
             for nozzle_id in np.unique(hit_ids):
                 mask = hit_ids == nozzle_id
-                ax_hist.hist(
-                    hit_positions[mask, 0],
-                    bins=40,
-                    alpha=0.4,
+                counts, _ = np.histogram(hit_positions[mask, 0], bins=bins, density=True)
+                centers = 0.5 * (bins[:-1] + bins[1:])
+                smooth_counts = gaussian_filter1d(counts, sigma=2)
+
+                # Scale relative to total density for visual consistency
+                scale_factor = np.max(hist_smooth_density_gaussian) / (np.max(smooth_counts) + 1e-9)
+                ax_hist.plot(
+                    centers,
+                    smooth_counts * scale_factor * 0.6,  # 0.6 → visually fit below total curve
+                    linewidth=1.5,
                     label=f"Nozzle {nozzle_id}",
-                    density=True
+                    alpha=0.8
                 )
 
 
