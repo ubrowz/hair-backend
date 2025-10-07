@@ -1281,7 +1281,19 @@ async def multifield_calc(params: Parameters):
             # Overlay per-nozzle histograms
             hit_positions = np.array(hit_positions)
             hit_ids = np.array(hit_ids)
-            bins = np.linspace(np.min(hit_positions[:, 0]), np.max(hit_positions[:, 0]), 40)
+            x_min = np.min(hit_positions[:, 0])
+            x_max = np.max(hit_positions[:, 0])
+            margin = 0.05 * (x_max - x_min)  # 5% margin
+            
+            bins = np.linspace(x_min - margin, x_max + margin, 40)
+            bin_centers = 0.5 * (bins[:-1] + bins[1:])
+#            bins = np.linspace(np.min(hit_positions[:, 0]), np.max(hit_positions[:, 0]), 40)
+
+            # Determine total curve peak for scaling
+            total_peak = np.max(hist_smooth_density_gaussian) + 1e-12
+
+
+
             for nozzle_id in np.unique(hit_ids):
                 mask = hit_ids == nozzle_id
                 counts, _ = np.histogram(hit_positions[mask, 0], bins=bins, density=True)
@@ -1289,11 +1301,15 @@ async def multifield_calc(params: Parameters):
                 smooth_counts = gaussian_filter1d(counts, sigma=2)
 
                 # Scale relative to total density for visual consistency
-                scale_factor = np.max(hist_smooth_density_gaussian) / (np.max(smooth_counts) + 1e-9)
+                nozzle_peak = np.max(smooth_counts) + 1e-12
+                scale_factor = total_peak * 0.6 / nozzle_peak  # 0.6 → leaves space for global curve
+
+                #scale_factor = np.max(hist_smooth_density_gaussian) / (np.max(smooth_counts) + 1e-9)
                 ax_hist.plot(
                     centers,
-                    smooth_counts * scale_factor * 0.6,  # 0.6 → visually fit below total curve
+                    smooth_counts * scale_factor,  # 0.6 → visually fit below total curve
                     linewidth=1.5,
+                    color="black",
                     label=f"Nozzle {nozzle_id}",
                     alpha=0.8
                 )
