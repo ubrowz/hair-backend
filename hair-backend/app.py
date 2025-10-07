@@ -565,7 +565,7 @@ async def multifield_calc(params: Parameters):
     #         Ez + Ez_rod + Ez_p1 + Ez_p2
     #     ])
     
-    
+    max_y_lim = 26.0
 
     V_nozzle = params.param1
     V_rod = params.param2
@@ -1225,6 +1225,7 @@ async def multifield_calc(params: Parameters):
         # Plot heatmap of field strength
         fig2, ax2 = plt.subplots(figsize=(7, 5))
         threshold = params.param18
+        ax2.set_ylim(0.0, rod_z + max_y_lim )
         
 #        threshold = 10  # in your units, e.g. V/m or kV/cm depending on inputs
         cmap = plt.cm.plasma
@@ -1267,18 +1268,18 @@ async def multifield_calc(params: Parameters):
             ax_hist.set_ylim(0, np.max(hist_smooth_density_gaussian) *1.2 )  # Max bar = 50% of plot height
             ax_hist.tick_params(axis="y", labelcolor="black")
             # Add text at specific coordinates
-            ax_hist.text(
-                0.02, 0.95, 
-                f"Field efficiency: {efficiency:.2f}\nFocus: {focus_value:.2f}", 
-                transform=ax_hist.transAxes,   # <--- important
-                fontsize=10, color="black", 
-                fontweight="bold", 
-                bbox=dict(facecolor="white",   # background color
-                          edgecolor="none",    # no border
-                          alpha=0.7),          # slightly transparent
-                ha="left", va="top"
-            )
-            # Overlay per-nozzle histograms
+            # ax_hist.text(
+            #     0.02, 0.95, 
+            #     f"Field efficiency: {efficiency:.2f}\nFocus: {focus_value:.2f}", 
+            #     transform=ax_hist.transAxes,   # <--- important
+            #     fontsize=10, color="black", 
+            #     fontweight="bold", 
+            #     bbox=dict(facecolor="white",   # background color
+            #               edgecolor="none",    # no border
+            #               alpha=0.7),          # slightly transparent
+            #     ha="left", va="top"
+            # )
+            # # Overlay per-nozzle histograms
             hit_positions = np.array(hit_positions)
             hit_ids = np.array(hit_ids)
             x_min = np.min(hit_positions[:, 0])
@@ -1293,7 +1294,7 @@ async def multifield_calc(params: Parameters):
 
             # Determine total curve peak for scaling
             total_peak = np.max(hist_smooth_density_gaussian) + 1e-12
-
+            nozzle_peaks = []
 
 
             for nozzle_id in np.unique(hit_ids):
@@ -1301,6 +1302,14 @@ async def multifield_calc(params: Parameters):
                 counts, _ = np.histogram(hit_positions[mask, 0], bins=bins, density=True)
                 centers = 0.5 * (bins[:-1] + bins[1:])
                 smooth_counts = gaussian_filter1d(counts, sigma=2)
+                
+                # Find the x position of the peak
+                peak_idx = np.argmax(smooth_counts)
+                peak_x = centers[peak_idx]
+                peak_y = smooth_counts[peak_idx]
+                
+                nozzle_peaks.append((nozzle_id, peak_x, peak_y))
+
 
                 # Scale relative to total density for visual consistency
                 nozzle_peak = np.max(smooth_counts) + 1e-12
@@ -1315,10 +1324,26 @@ async def multifield_calc(params: Parameters):
                     label=f"Nozzle {nozzle_id}",
                     alpha=0.8
                 )
+            # Sort peaks by x position
+            nozzle_peaks.sort(key=lambda x: x[1])
+            
+            # Distance between leftmost and rightmost peak
+            left_peak = nozzle_peaks[0]
+            right_peak = nozzle_peaks[-1]
+            peak_distance = right_peak[1] - left_peak[1]
 
-
-
-        
+            ax_hist.text(
+                0.02, 0.95, 
+                f"Field efficiency: {efficiency:.2f}\nFocus: {peak_distance:.2f}", 
+                transform=ax_hist.transAxes,   # <--- important
+                fontsize=10, color="black", 
+                fontweight="bold", 
+                bbox=dict(facecolor="white",   # background color
+                          edgecolor="none",    # no border
+                          alpha=0.7),          # slightly transparent
+                ha="left", va="top"
+            )
+       
         ax2.set_xlabel("x")
         ax2.set_ylabel("z")
         ax2.set_title(f"2D field strength and field lines (y={y0:.1f} plane)")
@@ -1408,11 +1433,11 @@ async def multifield_calc(params: Parameters):
                 threshold,
                 slice_choice,
                 0,
-                3,
+                4,
                 500,
                 max_steps,
                 efficiency,
-                focus_value
+                peak_distance
         )
 
 
