@@ -1088,13 +1088,20 @@ async def multifield_calc(params: Parameters):
     if slice_choice == 0:  # x-z
     
         # Define grid
-        nx, nz = 200, 200  # resolution
+        nx, nz = 200, 400  # resolution
         y0 = y_slice
         
-        x_vals = np.linspace(-rod_length/2-2.0, rod_length/2+2.0, nx)
-        z_vals = np.linspace(-2.0+rod_z,
-                             nozzle_z + 2.0, nz)
+        x_min = -rod_length/2-2.0
+        x_max = rod_length/2+2.0
         
+        z_min = 0.0
+        z_max = rod_z + max_y_lim
+        
+        # x_vals = np.linspace(-rod_length/2-2.0, rod_length/2+2.0, nx)
+        # z_vals = np.linspace(-2.0+rod_z,
+        #                      nozzle_z + 2.0, nz)
+        x_vals = np.linspace(x_min, x_max, nx)
+        z_vals = np.linspace(z_min, z_max, nz)
         
         X, Z = np.meshgrid(x_vals, z_vals)
         #Y = np.zeros_like(X)  # y=0 plane
@@ -1155,8 +1162,8 @@ async def multifield_calc(params: Parameters):
         ds = 0.1   # step length (tune to your units)
         
                 
-        x_min, x_max = x_vals[0], x_vals[-1]
-        z_min, z_max = z_vals[0], z_vals[-1]
+        # x_min, x_max = x_vals[0], x_vals[-1]
+        # z_min, z_max = z_vals[0], z_vals[-1]
         hit_positions = []
         hit_ids = []
 
@@ -1233,10 +1240,11 @@ async def multifield_calc(params: Parameters):
         
         im = ax2.pcolormesh(X, Z, E_slice, cmap=cmap, norm=norm1, shading="auto")
 
-        ax2.set_ylim(0.0, rod_z + max_y_lim )
+        ax2.set_xlim(x_min, x_max )
+        ax2.set_ylim(z_min, z_max )
 
         # Add 2D streamlines (direction field)
-        ax2.streamplot(X, Z, Ex_slice, Ez_slice, color="white",
+        ax2.streamplot(x_vals, z_vals, Ex_slice, Ez_slice, color="white",
                        linewidth=0.7, density=1.2, arrowsize=0.6)
         fig2.colorbar(im, ax=ax2, orientation="horizontal", shrink=0.8, label="|E|")
         
