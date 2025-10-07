@@ -1283,7 +1283,9 @@ async def multifield_calc(params: Parameters):
             hit_ids = np.array(hit_ids)
             x_min = np.min(hit_positions[:, 0])
             x_max = np.max(hit_positions[:, 0])
-            margin = 0.05 * (x_max - x_min)  # 5% margin
+            #margin = 0.05 * (x_max - x_min)  # 5% margin
+            sigma = 2  # same as your Gaussian filter sigma
+            margin = max(0.05 * (x_max - x_min), 4 * sigma * (x_max - x_min) / len(bins))
             
             bins = np.linspace(x_min - margin, x_max + margin, 40)
             bin_centers = 0.5 * (bins[:-1] + bins[1:])
