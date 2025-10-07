@@ -1187,7 +1187,7 @@ async def multifield_calc(params: Parameters):
                     break
             total += 1
         
-        efficiency = len(hits) / max(1, total)
+        efficiency = len(hit_positions) / max(1, total)
         #print(f"[Metrics] x–z slice capture efficiency: {efficiency:.2f}")
         
         if hits:
@@ -1261,7 +1261,7 @@ async def multifield_calc(params: Parameters):
             # Add second y-axis for histogram overlay
             ax_hist = ax2.twinx()
             hist_smooth_density_gaussian = gaussian_filter1d(hist_smooth_density, sigma=2)
-            ax_hist.plot(bin_centers, hist_smooth_density_gaussian, color="black", linewidth=2, label="Total hit density")
+#            ax_hist.plot(bin_centers, hist_smooth_density_gaussian, color="black", linewidth=2, label="Total hit density")
 #            ax_hist.plot(bin_centers, deposition, color="black", linewidth=2, label="Hit density")
             ax_hist.set_ylabel("Hit density (fraction)", color="black")
             ax_hist.set_ylim(0, np.max(hist_smooth_density_gaussian) *1.2 )  # Max bar = 50% of plot height
