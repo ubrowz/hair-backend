@@ -1225,18 +1225,21 @@ async def multifield_calc(params: Parameters):
         # Plot heatmap of field strength
         fig2, ax2 = plt.subplots(figsize=(7, 5))
         threshold = params.param18
-        ax2.set_ylim(0.0, rod_z + max_y_lim )
+
         
 #        threshold = 10  # in your units, e.g. V/m or kV/cm depending on inputs
         cmap = plt.cm.plasma
         norm1 = ThresholdNorm(vmin=0, vmax=threshold, threshold=threshold)
         
         im = ax2.pcolormesh(X, Z, E_slice, cmap=cmap, norm=norm1, shading="auto")
-        fig2.colorbar(im, ax=ax2, orientation="horizontal", shrink=0.8, label="|E|")
-        
+
+        ax2.set_ylim(0.0, rod_z + max_y_lim )
+
         # Add 2D streamlines (direction field)
         ax2.streamplot(X, Z, Ex_slice, Ez_slice, color="white",
                        linewidth=0.7, density=1.2, arrowsize=0.6)
+        fig2.colorbar(im, ax=ax2, orientation="horizontal", shrink=0.8, label="|E|")
+        
         
         # Add rod projection (circle at z=rod_z)
         rod_rect = patches.Rectangle(
