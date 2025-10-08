@@ -1360,7 +1360,7 @@ async def multifield_calc(params: Parameters):
                 ha="left", va="top"
             )
             #ax_hist.set_ylim(0, max_peak_height *1.2 )  # Max bar = 50% of plot height
-            ax_hist.set_ylim(0, 0.25 )  # Max bar = 50% of plot height
+            ax_hist.set_ylim(0, 1.0 )  # Max bar = 50% of plot height
            
 
 
