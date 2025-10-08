@@ -1359,7 +1359,8 @@ async def multifield_calc(params: Parameters):
                           alpha=0.7),          # slightly transparent
                 ha="left", va="top"
             )
-            ax_hist.set_ylim(0, max_peak_height *1.2 )  # Max bar = 50% of plot height
+            #ax_hist.set_ylim(0, max_peak_height *1.2 )  # Max bar = 50% of plot height
+            ax_hist.set_ylim(0, 0.25 )  # Max bar = 50% of plot height
            
 
 
@@ -1451,8 +1452,8 @@ async def multifield_calc(params: Parameters):
                 y_slice,
                 threshold,
                 slice_choice,
+                1,
                 0,
-                4,
                 500,
                 max_steps,
                 max_peak_height,
