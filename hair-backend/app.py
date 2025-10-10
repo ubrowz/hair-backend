@@ -1182,7 +1182,7 @@ async def multifield_calc(params: Parameters):
         
                 # draw around the rod circle
                 for c, th in zip(counts, bin_centers):
-                    r_outer = r_rod * (1 + 0.25 * c)
+                    r_outer = r_rod * (1 + 10.0 * c)
                     y1 = r_rod * np.cos(th)
                     z1 = rod_z + r_rod * np.sin(th)
                     y2 = r_outer * np.cos(th)
