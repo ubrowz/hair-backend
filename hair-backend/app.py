@@ -1043,8 +1043,15 @@ async def multifield_calc(params: Parameters):
     
         ny, nz = 200, 400  # resolution
         x0 = x_slice
-        y_vals = np.linspace(-20, 20, ny)
-        z_vals = np.linspace(-2, nozzle_z + 0.5 * distance_nozzle_rod, nz)
+        
+        y_min = -20.0
+        y_max = 20.0
+        
+        z_min = 0.0
+        z_max = rod_z + max_y_lim
+        
+        y_vals = np.linspace(x_min, x_max, nx)
+        z_vals = np.linspace(z_min, z_max, nz)
         
         Y, Z = np.meshgrid(y_vals, z_vals)
         X = np.full_like(Y, x0)
