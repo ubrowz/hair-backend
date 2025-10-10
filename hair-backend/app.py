@@ -21,12 +21,12 @@ from matplotlib.patches import Rectangle
 import matplotlib.colors as mcolors
 import matplotlib.patches as patches
 import random
-import re
-import sys
-from pathlib import Path
+#import re
+#import sys
+#from pathlib import Path
 from scipy.interpolate import RegularGridInterpolator
 from scipy.ndimage import gaussian_filter1d
-from mpl_toolkits.axes_grid1 import make_axes_locatable
+#from mpl_toolkits.axes_grid1 import make_axes_locatable
 import asyncpg
 import os 
 
@@ -350,7 +350,7 @@ async def field_calc(params: Parameters):
     rod_length = params.param5
     zslice = params.param6
     ax_choice = int(params.param7)
-    dummy2 = params.param8
+    #dummy2 = params.param8
 
     collector_z = 2.0           # vertical position (z-axis) of rod center
 
@@ -500,71 +500,6 @@ pdf = norm.pdf
 async def multifield_calc(params: Parameters):
     
 
-    # Electric field (nozzle + rod + plates)
-    # def electric_field_needle(x, y, z):
-        
-    #     # Start with zero field
-    #     Ex, Ey, Ez = 0.0, 0.0, 0.0
-        
-    #     # --- Contribution from each nozzle (finite needle) ---
-    #     N_seg_nozzle = 10
-    #     for (xn, yn, zn) in nozzle_positions:
-    #         # Discretize nozzle as a line in y-direction
-    #         zs = np.linspace(zn, zn + nozzle_length, N_seg_nozzle)
-    #         for zi in zs:
-    #             rx, ry, rz = (x - xn), (y - yn), (z - zi)
-    #             r3 = (rx**2 + ry**2 + rz**2 + 1e-9)**1.5
-    #             Ex += V_nozzle * rx / r3
-    #             Ey += V_nozzle * ry / r3
-    #             Ez += V_nozzle * rz / r3
-        
-    #     # --- Contribution from the rod (cylinder along x-axis) ---
-    #     N_seg = 50
-    #     xs = np.linspace(-rod_length/2, rod_length/2, N_seg)
-    #     Ex_rod = Ey_rod = Ez_rod = 0.0
-    #     for xi in xs:
-    #         r_seg = np.sqrt(((x - xi))**2 + (y)**2 + ((z - rod_z))**2)
-    #         Ex_rod += V_rod * ((x - xi)) / (r_seg**3 + 1e-9)
-    #         Ey_rod += V_rod * (y) / (r_seg**3 + 1e-9)
-    #         Ez_rod += V_rod * ((z - rod_z)) / (r_seg**3 + 1e-9)
-            
-    #     # --- Contribution from plates ---
-    #     def plate_field(x, y, z, plate_center, V_plate):
-    #         xp, yp, zp = plate_center
-    #         Ny, Nz = 10, 10  # discretization resolution
-    #         ys = np.linspace(yp - plate_height/2, yp + plate_height/2, Ny)
-    #         zs = np.linspace(zp - plate_width/2, zp + plate_width/2, Nz)
-    #         Ex_p, Ey_p, Ez_p = 0.0, 0.0, 0.0
-    #         for yi in ys:
-    #             for zi in zs:
-    #                 rx, ry, rz = (x - xp), (y - yi), (z - zi)
-    #                 r3 = (rx**2 + ry**2 + rz**2 + 1e-9)**1.5
-    #                 Ex_p += V_plate * rx / r3
-    #                 Ey_p += V_plate * ry / r3
-    #                 Ez_p += V_plate * rz / r3
-    #         return Ex_p, Ey_p, Ez_p
-       
-    #     plate1_center = plate1_position[0]
-    #     plate2_center = plate2_position[0]
-
-    #     Ex_p1 = 0.0
-    #     Ex_p2 = 0.0
-    #     Ey_p1 = 0.0
-    #     Ey_p2 = 0.0
-    #     Ez_p1 = 0.0
-    #     Ez_p2 = 0.0
-    
-    #     if (plate_height != 0.0) and (plate_width != 0.0):    
-    #         Ex_p1, Ey_p1, Ez_p1 = plate_field(x, y, z, plate1_center, V_plate1)
-    #         Ex_p2, Ey_p2, Ez_p2 = plate_field(x, y, z, plate2_center, V_plate2)
-    
-    #     # --- Sum all contributions ---
-    #     return np.array([
-    #         Ex + Ex_rod + Ex_p1 + Ex_p2,
-    #         Ey + Ey_rod + Ey_p1 + Ey_p2,
-    #         Ez + Ez_rod + Ez_p1 + Ez_p2
-    #     ])
-    
     max_y_lim = 26.0
 
     V_nozzle = params.param1
@@ -592,8 +527,6 @@ async def multifield_calc(params: Parameters):
     V_plate1 = V_shields
     V_plate2 = V_shields
     
-    nozzle_length = plate_height
-    
     nozzle_positions = [(x0-((n_nozzles-1)*spacing)/2+nozzles_center, nozzles_shift, nozzle_z) for x0 in 
                      np.linspace(0,
                                  (n_nozzles-1)*spacing,
@@ -603,11 +536,8 @@ async def multifield_calc(params: Parameters):
     
     
     # anything above threshold is shown as yellow
-    #threshold = 2  # adjust based on your units
     threshold = params.param18
     slice_choice = int(params.param19)
-    
-#    print("slice_choice = ", slice_choice)
     
     class ThresholdNorm(mcolors.Normalize):
         def __init__(self, vmin=None, vmax=None, threshold=None, clip=False):
@@ -736,328 +666,55 @@ async def multifield_calc(params: Parameters):
 
 
         
-    def electric_field_old3(x, y, z):
-        """
-        Compute the total electric field at (x, y, z)
-        from nozzle(s), grounded rod, and (optional) plates.
-        Includes:
-          - Soft regularization radius (soft_a)
-          - Auto scaling of field strength to match global Vdiff/d
-        """
-    
-        # --- PARAMETERS ---
-        soft_a = 1e-4  # [m] smoothing radius to avoid singularities
-        N_seg = 50     # segments for rod
-        Ny, Nz = 10, 10  # plate discretization
-        epsilon0 = 8.854e-12
-    
-        # --- BASE FIELD (unscaled) ---
-        Ex, Ey, Ez = 0.0, 0.0, 0.0
-    
-        # 1️⃣ Nozzle contribution (point charge approximation)
-        for (xn, yn, zn) in nozzle_positions:
-            rx, ry, rz = x - xn, y - yn, z - zn
-            r3 = (rx**2 + ry**2 + rz**2 + soft_a**2)**1.5
-            Ex += V_nozzle * rx / r3
-            Ey += V_nozzle * ry / r3
-            Ez += V_nozzle * rz / r3
-    
-        # 2️⃣ Rod contribution (line of charge along x-axis)
-        xs = np.linspace(-rod_length / 2, rod_length / 2, N_seg)
-        for xi in xs:
-            rx, ry, rz = x - xi, y, z - rod_z
-            r3 = (rx**2 + ry**2 + rz**2 + soft_a**2)**1.5
-            Ex += V_rod * rx / r3
-            Ey += V_rod * ry / r3
-            Ez += V_rod * rz / r3
-
-        # ---------------------------------------------------------
-        # 🧭 3️⃣ Compute alpha scaling before adding plates
-        # ---------------------------------------------------------
-        Vdiff = abs(V_nozzle - V_rod)
-        d_gap = abs(nozzle_z - rod_z)
-        E_expected = Vdiff / d_gap
-
-        global alpha_scale     
-        if 'alpha_scale' not in globals():
-            # Evaluate unscaled nozzle–rod field at mid-gap center
-            z_mid = (nozzle_z + rod_z) / 2
-            # Take the center between nozzle and rod along x,y = 0 plane
-            E_mid_vec = np.array([
-                V_nozzle * (0 - nozzle_positions[0][0]) / ((nozzle_positions[0][0])**2 + (z_mid - nozzle_positions[0][2])**2 + soft_a**2)**1.5
-                + V_rod * (0) / ((z_mid - rod_z)**2 + soft_a**2)**1.5,
-                0.0,
-                V_nozzle * (z_mid - nozzle_positions[0][2]) / ((nozzle_positions[0][0])**2 + (z_mid - nozzle_positions[0][2])**2 + soft_a**2)**1.5
-                + V_rod * (z_mid - rod_z) / ((z_mid - rod_z)**2 + soft_a**2)**1.5
-            ])
-            E_mid = np.linalg.norm(E_mid_vec)
-            alpha_scale = E_expected / (E_mid + 1e-12)
-            print(f"[Scaling] α = {alpha_scale:.3e} to match E ≈ {E_expected:.3e} V/m")    
-
-        # Apply scaling to the base field (no plates)
-        Ex_scaled = Ex * alpha_scale
-        Ey_scaled = Ey * alpha_scale
-        Ez_scaled = Ez * alpha_scale
+    # def normalize_density_from_hist(hist, bins):
+    #     """Convert counts histogram to normalized density & bin centers."""
+    #     hist = np.asarray(hist, dtype=float)
+    #     bin_centers = 0.5 * (bins[:-1] + bins[1:])
+    #     total = hist.sum()
+    #     if total <= 0:
+    #         return bin_centers, np.zeros_like(bin_centers)
+    #     density = hist / total
+    #     return bin_centers, density
 
     
-        # 3️⃣ Plates (if enabled)
-        def plate_field(x, y, z, plate_center, V_plate):
-            xp, yp, zp = plate_center
-            Ny, Nz = 10, 10
-            ys = np.linspace(yp - plate_height/2, yp + plate_height/2, Ny)
-            zs = np.linspace(zp - plate_width/2, zp + plate_width/2, Nz)
-            dy = ys[1] - ys[0]
-            dz = zs[1] - zs[0]
-            dA = dy * dz  # area of each patch
-        
-            Ex_p, Ey_p, Ez_p = 0.0, 0.0, 0.0
-            for yi in ys:
-                for zi in zs:
-                    rx, ry, rz = (x - xp), (y - yi), (z - zi)
-                    r3 = (rx**2 + ry**2 + rz**2 + 1e-9)**1.5
-                    Ex_p += dA * V_plate * rx / r3
-                    Ey_p += dA * V_plate * ry / r3
-                    Ez_p += dA * V_plate * rz / r3
-        
-            return Ex_p, Ey_p, Ez_p
+    # def fwhm_from_density(bin_centers, density, sigma_smooth=1.0):
+    #     """Estimate FWHM of the (smoothed) peak. Returns None if no peak."""
+    #     d = gaussian_filter1d(density, sigma=sigma_smooth)
+    #     if d.max() <= 0:
+    #         return None
+    #     half = d.max() / 2.0
+    #     # find contiguous region where d >= half
+    #     mask = d >= half
+    #     if not mask.any():
+    #         return None
+    #     # find leftmost and rightmost index of the largest contiguous True region
+    #     # prefer the region containing the global maximum
+    #     max_idx = np.argmax(d)
+    #     # find contiguous run around max_idx
+    #     left = max_idx
+    #     while left > 0 and mask[left-1]:
+    #         left -= 1
+    #     right = max_idx
+    #     while right < len(d)-1 and mask[right+1]:
+    #         right += 1
+    #     # convert to width in x units
+    #     x_left = np.interp(left, np.arange(len(bin_centers)), bin_centers)
+    #     x_right = np.interp(right, np.arange(len(bin_centers)), bin_centers)
+    #     return x_right - x_left
 
+    # def focus_metrics_from_hist(hist, bins, smooth_sigma=1.0):
+    #     """
+    #     Compute a set of 'focus' metrics from a histogram (counts + bin edges).
+    #     Returns dict with: effective_std, fwhm, gini, entropy, kurtosis, peak_mean_ratio, fraction_center
+    #     """
+    #     bin_centers, density = normalize_density_from_hist(hist, bins)
+    #     # smooth density for FWHM and more robust peak detection
+    #     #d_smooth = gaussian_filter1d(density, sigma=smooth_sigma)
     
-        Ex_p1 = Ey_p1 = Ez_p1 = Ex_p2 = Ey_p2 = Ez_p2 = 0.0
-        if plate_height != 0.0 and plate_width != 0.0:
-            Ex_p1, Ey_p1, Ez_p1 = plate_field(x, y, z, plate1_position[0], V_plate1)
-            Ex_p2, Ey_p2, Ez_p2 = plate_field(x, y, z, plate2_position[0], V_plate2)
-    
-        # --- Combine contributions ---
-        Ex_total = Ex_scaled + Ex_p1 + Ex_p2
-        Ey_total = Ey_scaled + Ey_p1 + Ey_p2
-        Ez_total = Ez_scaled + Ez_p1 + Ez_p2
-    
-        # # --- 4️⃣ Automatic scaling to realistic field magnitude ---
-        # # Compute expected mid-gap average field (in V/m)
-        # Vdiff = abs(V_nozzle - V_rod)
-        # d_gap = abs(nozzle_z - rod_z)
-        # E_expected = Vdiff / d_gap
-    
-        # # Instead of recursion, we'll cache scaling factor globally:
-        # global alpha_scale
-        # if 'alpha_scale' not in globals():
-        #     # measure the unscaled field at the mid-gap center
-        #     E_test = np.linalg.norm([Ex_total, Ey_total, Ez_total])
-        #     alpha_scale = E_expected / (E_test + 1e-12)
-        #     print(f"[Scaling] α = {alpha_scale:.3e} to match E ≈ {E_expected:.3e} V/m")
-    
-        # # Apply the scaling
-        # Ex_total *= alpha_scale
-        # Ey_total *= alpha_scale
-        # Ez_total *= alpha_scale
-    
-        return np.array([Ex_total, Ey_total, Ez_total])
+    #     #eff_std = effective_std(bin_centers, density)
+    #     fwhm = fwhm_from_density(bin_centers, density, sigma_smooth=smooth_sigma)
         
-    def electric_field_old2(x, y, z):
-        """
-        Computes the electric field (Ex, Ey, Ez) from:
-        - nozzles (treated as point-like charged tips)
-        - grounded rod (line of charge)
-        - optional plates (if nonzero size)
-        
-        Now scaled so that the overall field magnitude depends correctly on
-        the potential difference (V_nozzle - V_rod) and on the nozzle–rod distance.
-        """
-        # --- Constants ---
-        epsilon0 = 8.854e-12  # vacuum permittivity [F/m]
-        k = 1.0 / (4 * np.pi * epsilon0)  # Coulomb constant
-        cm_to_m = 1e-2  # your geometry is in cm, convert to meters
-        
-        # Convert positions to meters for physics-based scaling
-        x_m = x * cm_to_m
-        y_m = y * cm_to_m
-        z_m = z * cm_to_m
-        
-        rod_z_m = rod_z * cm_to_m
-        nozzle_positions_m = [(xn * cm_to_m, yn * cm_to_m, zn * cm_to_m)
-                              for (xn, yn, zn) in nozzle_positions]
-        
-        # Effective voltage difference
-        V_diff = (V_nozzle - V_rod) * 1e3  # convert kV → V
-    
-        # Typical nozzle–rod separation in meters
-        if len(nozzle_positions_m) > 0:
-            nozzle_z_m = np.mean([zn for (_, _, zn) in nozzle_positions_m])
-            d = abs(nozzle_z_m - rod_z_m)
-        else:
-            d = 0.01  # fallback 1 cm
-    
-        # Effective charge chosen so that E_avg ≈ V_diff / d
-        # We tune q_eff so that at a distance ≈ d/2 the field ≈ V_diff/d
-        q_eff = (V_diff * d / k) * 1e-4  # tuning factor to match typical field scale
-        soft_a = 1e-4
-    
-        # Initialize
-        Ex, Ey, Ez = 0.0, 0.0, 0.0
-    
-        # --- Nozzle contribution (positive) ---
-        for (xn, yn, zn) in nozzle_positions_m:
-            rx, ry, rz = (x_m - xn), (y_m - yn), (z_m - zn)
-            r3 = (rx**2 + ry**2 + rz**2 + soft_a)**1.5
-            Ex += k * q_eff * rx / r3
-            Ey += k * q_eff * ry / r3
-            Ez += k * q_eff * rz / r3
-    
-        # --- Rod contribution (opposite polarity) ---
-        N_seg = 50
-        xs = np.linspace(-rod_length / 2, rod_length / 2, N_seg) * cm_to_m
-        for xi in xs:
-            rx, ry, rz = (x_m - xi), (y_m), (z_m - rod_z_m)
-            r3 = (rx**2 + ry**2 + rz**2 + soft_a)**1.5
-            Ex -= k * q_eff * rx / r3
-            Ey -= k * q_eff * ry / r3
-            Ez -= k * q_eff * rz / r3
-    
-        # --- Plate contributions (if defined) ---
-        Ex_p1 = Ey_p1 = Ez_p1 = 0.0
-        Ex_p2 = Ey_p2 = Ez_p2 = 0.0
-    
-        def plate_field(x, y, z, plate_center, V_plate):
-            xp, yp, zp = plate_center
-            Ny, Nz = 10, 10
-            ys = np.linspace(yp - plate_height / 2, yp + plate_height / 2, Ny)
-            zs = np.linspace(zp - plate_width / 2, zp + plate_width / 2, Nz)
-            Ex_p = Ey_p = Ez_p = 0.0
-            for yi in ys:
-                for zi in zs:
-                    rx, ry, rz = (x - xp), (y - yi), (z - zi)
-                    r3 = (rx**2 + ry**2 + rz**2 + soft_a)**1.5
-                    Ex_p += V_plate * rx / r3
-                    Ey_p += V_plate * ry / r3
-                    Ez_p += V_plate * rz / r3
-            return Ex_p, Ey_p, Ez_p
-    
-        if (plate_height != 0.0) and (plate_width != 0.0):
-            plate1_center = plate1_position[0]
-            plate2_center = plate2_position[0]
-            Ex_p1, Ey_p1, Ez_p1 = plate_field(x, y, z, plate1_center, V_plate1)
-            Ex_p2, Ey_p2, Ez_p2 = plate_field(x, y, z, plate2_center, V_plate2)
-    
-        # Sum all
-        Ex_total = Ex + Ex_p1 + Ex_p2
-        Ey_total = Ey + Ey_p1 + Ey_p2
-        Ez_total = Ez + Ez_p1 + Ez_p2
-    
-        return np.array([Ex_total, Ey_total, Ez_total])
-    
-    
-    # Electric field (nozzle + rod)
-    def electric_field_old(x, y, z):
-        
-        # Start with zero field
-        Ex, Ey, Ez = 0.0, 0.0, 0.0
-        
-        # Contributions from each nozzle (point charge approximation)
-        for (xn, yn, zn) in nozzle_positions:
-            rx, ry, rz = (x - xn), (y - yn), (z - zn)
-            r3 = (rx**2 + ry**2 + rz**2 + 1e-9)**1.5
-            Ex += V_nozzle * rx / r3
-            Ey += V_nozzle * ry / r3
-            Ez += V_nozzle * rz / r3
-        
-        # Contribution from the rod (cylinder along x-axis)
-#        N_seg = 50
-        N_seg = 50
-        xs = np.linspace(-rod_length/2, rod_length/2, N_seg)
-        Ex_rod = Ey_rod = Ez_rod = 0.0
-        for xi in xs:
-            r_seg = np.sqrt(((x - xi))**2 + (y)**2 + ((z - rod_z))**2)
-            Ex_rod += V_rod * ((x - xi)) / (r_seg**3 + 1e-9)
-            Ey_rod += V_rod * (y) / (r_seg**3 + 1e-9)
-            Ez_rod += V_rod * ((z - rod_z)) / (r_seg**3 + 1e-9)
-            
-        def plate_field(x, y, z, plate_center, V_plate):
-            # plate_center = (xp, yp, zp)
-            xp, yp, zp = plate_center
-            Ny, Nz = 10, 10  # resolution of discretization
-            ys = np.linspace(yp - plate_height/2, yp + plate_height/2, Ny)
-            zs = np.linspace(zp - plate_width/2, zp + plate_width/2, Nz)
-            Ex_p, Ey_p, Ez_p = 0.0, 0.0, 0.0
-            for yi in ys:
-                for zi in zs:
-                    rx, ry, rz = (x - xp), (y - yi), (z - zi)
-                    r3 = (rx**2 + ry**2 + rz**2 + 1e-9)**1.5
-                    Ex_p += V_plate * rx / r3
-                    Ey_p += V_plate * ry / r3
-                    Ez_p += V_plate * rz / r3
-            return Ex_p, Ey_p, Ez_p
-       
-        # X-positions of the plates
-        # ------------------------------
-       
-        plate1_center = plate1_position[0]
-        plate2_center = plate2_position[0]
-    
-        Ex_p1 = 0.0
-        Ex_p2 = 0.0
-        Ey_p1 = 0.0
-        Ey_p2 = 0.0
-        Ez_p1 = 0.0
-        Ez_p2 = 0.0
-    
-        if (plate_height != 0.0) and (plate_width != 0.0):
-            Ex_p1, Ey_p1, Ez_p1 = plate_field(x, y, z, plate1_center, V_plate1)
-            Ex_p2, Ey_p2, Ez_p2 = plate_field(x, y, z, plate2_center, V_plate2)
-    
-    
-        return np.array([Ex + Ex_rod + Ex_p1 + Ex_p2,
-                         Ey + Ey_rod + Ey_p1 + Ey_p2,
-                         Ez + Ez_rod + Ez_p1 + Ez_p2])
-
-    def normalize_density_from_hist(hist, bins):
-        """Convert counts histogram to normalized density & bin centers."""
-        hist = np.asarray(hist, dtype=float)
-        bin_centers = 0.5 * (bins[:-1] + bins[1:])
-        total = hist.sum()
-        if total <= 0:
-            return bin_centers, np.zeros_like(bin_centers)
-        density = hist / total
-        return bin_centers, density
-
-    
-    def fwhm_from_density(bin_centers, density, sigma_smooth=1.0):
-        """Estimate FWHM of the (smoothed) peak. Returns None if no peak."""
-        d = gaussian_filter1d(density, sigma=sigma_smooth)
-        if d.max() <= 0:
-            return None
-        half = d.max() / 2.0
-        # find contiguous region where d >= half
-        mask = d >= half
-        if not mask.any():
-            return None
-        # find leftmost and rightmost index of the largest contiguous True region
-        # prefer the region containing the global maximum
-        max_idx = np.argmax(d)
-        # find contiguous run around max_idx
-        left = max_idx
-        while left > 0 and mask[left-1]:
-            left -= 1
-        right = max_idx
-        while right < len(d)-1 and mask[right+1]:
-            right += 1
-        # convert to width in x units
-        x_left = np.interp(left, np.arange(len(bin_centers)), bin_centers)
-        x_right = np.interp(right, np.arange(len(bin_centers)), bin_centers)
-        return x_right - x_left
-
-    def focus_metrics_from_hist(hist, bins, smooth_sigma=1.0):
-        """
-        Compute a set of 'focus' metrics from a histogram (counts + bin edges).
-        Returns dict with: effective_std, fwhm, gini, entropy, kurtosis, peak_mean_ratio, fraction_center
-        """
-        bin_centers, density = normalize_density_from_hist(hist, bins)
-        # smooth density for FWHM and more robust peak detection
-        #d_smooth = gaussian_filter1d(density, sigma=smooth_sigma)
-    
-        #eff_std = effective_std(bin_centers, density)
-        fwhm = fwhm_from_density(bin_centers, density, sigma_smooth=smooth_sigma)
-        
-        return fwhm
+    #     return fwhm
     
     def field_stats_around_rod(sample_radius = 0.002,  # meters (e.g. 2 mm)
                            nrad=36, nlen=20):
@@ -1080,6 +737,8 @@ async def multifield_calc(params: Parameters):
         mid_z_cm = (nozzle_positions[0][2] + rod_z)/2.0
         Exc, Eyc, Ezc = electric_field(0.0, 0.0, mid_z_cm)
         print("Centerline E_mid |E|:", np.linalg.norm([Exc, Eyc, Ezc]))
+        
+        #if np.mean(Evals)/np.linalg.norm([Exc, Eyc, Ezc]) > 10x or 20x, increase soft_a by factor of 5 or more.
 
 
     
@@ -1097,14 +756,10 @@ async def multifield_calc(params: Parameters):
         z_min = 0.0
         z_max = rod_z + max_y_lim
         
-        # x_vals = np.linspace(-rod_length/2-2.0, rod_length/2+2.0, nx)
-        # z_vals = np.linspace(-2.0+rod_z,
-        #                      nozzle_z + 2.0, nz)
         x_vals = np.linspace(x_min, x_max, nx)
         z_vals = np.linspace(z_min, z_max, nz)
         
         X, Z = np.meshgrid(x_vals, z_vals)
-        #Y = np.zeros_like(X)  # y=0 plane
         Y = np.full_like(X, y0)  # fixed x-slice
         
         # Compute field strength and field vectors
@@ -1128,24 +783,6 @@ async def multifield_calc(params: Parameters):
         interp_Ez_xz = RegularGridInterpolator((z_vals, x_vals), Ez_slice,
                                                bounds_error=False, fill_value=0.0)
         
-        # Seeds
-        # Nseeds_per_nozzle = 180
-        # seed_radius = 0.2
-        # seeds = []
-        # for (xn, yn, zn) in nozzle_positions:
-        #     angles = np.linspace(0, 2*np.pi, Nseeds_per_nozzle, endpoint=False)
-        #     for a in angles:
-        #         xs = xn + seed_radius * np.cos(a)
-        #         zs = zn + seed_radius * np.sin(a)
-        #         seeds.append((xs, zs))
-
-        # Seeds (reused angles, shifted to each nozzle position)
-        # seeds = []
-        # for (xn, yn, zn) in nozzle_positions:
-        #     xs = xn + SEED_RADIUS * np.cos(ANGLES)
-        #     zs = zn + SEED_RADIUS * np.sin(ANGLES)
-        #     seeds.extend(zip(xs, zs))
-
         seeds = []
         seed_nozzle_ids = []
         
@@ -1161,12 +798,8 @@ async def multifield_calc(params: Parameters):
         max_steps = 2000
         ds = 0.1   # step length (tune to your units)
         
-                
-        # x_min, x_max = x_vals[0], x_vals[-1]
-        # z_min, z_max = z_vals[0], z_vals[-1]
         hit_positions = []
         hit_ids = []
-
         
         for ((xs, zs), nozzle_id) in zip(seeds, seed_nozzle_ids):
             x, z = float(xs), float(zs)
@@ -1195,46 +828,17 @@ async def multifield_calc(params: Parameters):
             total += 1
         
         efficiency = len(hit_positions) / max(1, total)
-        #print(f"[Metrics] x–z slice capture efficiency: {efficiency:.2f}")
         
         if hits:
             hit_xs = [x for (x, z) in hits]
-            # hist, bins = np.histogram(hit_xs, bins=60, range=(-rod_length/2.0, rod_length/2.0))
-            # bin_width = bins[1] - bins[0]
-            # bin_centers = 0.5 * (bins[:-1] + bins[1:])
             
             # Raw histogram (counts, not normalized yet)
             hist, bins = np.histogram(hit_xs, bins=60, range=(-rod_length/2.0, rod_length/2.0))
-            bin_width = bins[1] - bins[0]
-            bin_centers = 0.5 * (bins[:-1] + bins[1:])
-            focus_value = focus_metrics_from_hist(hist, bins)
-
-            
-            # --- Apply Gaussian smoothing on raw counts ---
-            sigma_bins = 2.0   # in *number of bins*, not physical cm
-            hist_smooth_counts = gaussian_filter1d(hist.astype(float), sigma=sigma_bins, mode="constant")
-            
-            # Normalize smoothed counts to a density (so integral = 1)
-            if hist_smooth_counts.sum() > 0:
-                hist_smooth_density = hist_smooth_counts / (hist_smooth_counts.sum() * bin_width)
-            else:
-                hist_smooth_density = np.zeros_like(hist_smooth_counts)
-
-            
-            #hist_density = hist / (hist.sum() * bin_width)  # normalized per unit length
-           # print(f"[Metrics] Hit density histogram (per unit length): {hist_density.round(3).tolist()}")
-            #hist, bins = np.histogram(hit_xs, bins=12, range=(-rod_length/2.0, rod_length/2.0))
-            #print(f"[Metrics] Hit density histogram (rod length): {hist.tolist()}")
-            # optionally also print a few raw x hits for debugging:
-            # print("raw hit x positions (first 20):", np.array(hit_xs)[:20])  
-                        
                 
         # Plot heatmap of field strength
         fig2, ax2 = plt.subplots(figsize=(7, 5))
         threshold = params.param18
-
         
-#        threshold = 10  # in your units, e.g. V/m or kV/cm depending on inputs
         cmap = plt.cm.plasma
         norm1 = ThresholdNorm(vmin=0, vmax=threshold, threshold=threshold)
         
@@ -1249,7 +853,7 @@ async def multifield_calc(params: Parameters):
         fig2.colorbar(im, ax=ax2, orientation="horizontal", shrink=0.8, label="|E|")
         
         
-        # Add rod projection (circle at z=rod_z)
+        # Add rod projection (rectangle at z=rod_z)
         rod_rect = patches.Rectangle(
             (-rod_length/2, rod_z - rod_diameter/2),  # (x, z) lower-left corner
             rod_length,                               # width (x direction)
@@ -1258,8 +862,7 @@ async def multifield_calc(params: Parameters):
         )
         ax2.add_patch(rod_rect)
         
-        
-        # Add nozzle positions (as red dots)
+                # Add nozzle positions (as red dots)
         for (xn, yn, zn) in nozzle_positions:
             ax2.plot(xn, zn, "ro")
             
@@ -1272,40 +875,19 @@ async def multifield_calc(params: Parameters):
         if hits:
             # Add second y-axis for histogram overlay
             ax_hist = ax2.twinx()
-            hist_smooth_density_gaussian = gaussian_filter1d(hist_smooth_density, sigma=2)
-#            ax_hist.plot(bin_centers, hist_smooth_density_gaussian, color="black", linewidth=2, label="Total hit density")
-#            ax_hist.plot(bin_centers, deposition, color="black", linewidth=2, label="Hit density")
             ax_hist.set_ylabel("Hit density (fraction)", color="black")
-            #ax_hist.set_ylim(0, np.max(hist_smooth_density_gaussian) *1.2 )  # Max bar = 50% of plot height
-            #ax_hist.set_ylim(0, 0.2)
             ax_hist.tick_params(axis="y", labelcolor="black")
-            # Add text at specific coordinates
-            # ax_hist.text(
-            #     0.02, 0.95, 
-            #     f"Field efficiency: {efficiency:.2f}\nFocus: {focus_value:.2f}", 
-            #     transform=ax_hist.transAxes,   # <--- important
-            #     fontsize=10, color="black", 
-            #     fontweight="bold", 
-            #     bbox=dict(facecolor="white",   # background color
-            #               edgecolor="none",    # no border
-            #               alpha=0.7),          # slightly transparent
-            #     ha="left", va="top"
-            # )
-            # # Overlay per-nozzle histograms
+            # Overlay per-nozzle histograms
             hit_positions = np.array(hit_positions)
             hit_ids = np.array(hit_ids)
             x_min = np.min(hit_positions[:, 0])
             x_max = np.max(hit_positions[:, 0])
-            #margin = 0.05 * (x_max - x_min)  # 5% margin
-            sigma = 2  # same as your Gaussian filter sigma
+            sigma = 2  # same as Gaussian filter sigma
             margin = max(0.05 * (x_max - x_min), 4 * sigma * (x_max - x_min) / len(bins))
             
             bins = np.linspace(x_min - margin, x_max + margin, 40)
-            bin_centers = 0.5 * (bins[:-1] + bins[1:])
-#            bins = np.linspace(np.min(hit_positions[:, 0]), np.max(hit_positions[:, 0]), 40)
 
             # Determine total curve peak for scaling
-            total_peak = np.max(hist_smooth_density_gaussian) + 1e-12
             nozzle_peaks = []
             peak_heights = []
 
@@ -1322,17 +904,11 @@ async def multifield_calc(params: Parameters):
                 peak_y = smooth_counts[peak_idx]
                 
                 nozzle_peaks.append((nozzle_id, peak_x, peak_y))
-
-
-                # Scale relative to total density for visual consistency
-                nozzle_peak = np.max(smooth_counts) + 1e-12
                 peak_heights.append(np.max(smooth_counts))
-                scale_factor = total_peak * 0.6 / nozzle_peak  # 0.6 → leaves space for global curve
 
-                #scale_factor = np.max(hist_smooth_density_gaussian) / (np.max(smooth_counts) + 1e-9)
                 ax_hist.plot(
                     centers,
-                    smooth_counts, # * scale_factor,  # 0.6 → visually fit below total curve
+                    smooth_counts,
                     linewidth=1.5,
                     color="black",
                     label=f"Nozzle {nozzle_id}",
@@ -1359,7 +935,6 @@ async def multifield_calc(params: Parameters):
                           alpha=0.7),          # slightly transparent
                 ha="left", va="top"
             )
-            #ax_hist.set_ylim(0, max_peak_height *1.2 )  # Max bar = 50% of plot height
             ax_hist.set_ylim(0, 1.0 )  # Max bar = 50% of plot height
            
 
@@ -1462,20 +1037,177 @@ async def multifield_calc(params: Parameters):
 
 
         return StreamingResponse(buf, media_type="image/png")
-     
+
+    # --- 2D slice with field strength + field lines in y–z plane (x=0) ---
+    if slice_choice == 1:  # y-z
+    
+        ny, nz = 200, 400  # resolution
+        x0 = x_slice
+        y_vals = np.linspace(-20, 20, ny)
+        z_vals = np.linspace(-2, nozzle_z + 0.5 * distance_nozzle_rod, nz)
+        
+        Y, Z = np.meshgrid(y_vals, z_vals)
+        X = np.full_like(Y, x0)
+        
+        # Compute field strength and vectors
+        E_slice = np.zeros_like(Y)
+        Ey_slice = np.zeros_like(Y)
+        Ez_slice = np.zeros_like(Y)
+        
+        for i in range(ny):
+            for j in range(nz):
+                E = electric_field(x0, Y[j, i], Z[j, i])
+                Ey_slice[j, i] = E[1]
+                Ez_slice[j, i] = E[2]
+                E_slice[j, i] = np.sqrt(E[1]**2 + E[2]**2)
+                
+        # --- Prepare 2D interpolators for y–z slice ---
+        interp_Ey_yz = RegularGridInterpolator((z_vals, y_vals), Ey_slice,
+                                               bounds_error=False, fill_value=0.0)
+        interp_Ez_yz = RegularGridInterpolator((z_vals, y_vals), Ez_slice,
+                                               bounds_error=False, fill_value=0.0)
+        
+        # --- Select only the nozzle nearest to x=0 ---
+        nozzle_x0 = min(nozzle_positions, key=lambda p: abs(p[0]))
+        xn, yn, zn = nozzle_x0
+        
+        # Seeds on a circle around that nozzle (projected to y–z)
+        Nseeds_per_nozzle = 180
+        seed_radius = 0.2
+        angles = np.linspace(0, 2*np.pi, Nseeds_per_nozzle, endpoint=False)
+        seeds = [(yn + seed_radius * np.cos(a), zn + seed_radius * np.sin(a)) for a in angles]
+        
+        # --- Trace field lines ---
+        hits = []
+        total = 0
+        max_steps = 2000
+        ds = 0.1
+        
+        y_min, y_max = y_vals[0], y_vals[-1]
+        z_min, z_max = z_vals[0], z_vals[-1]
+        
+        for (ys, zs) in seeds:
+            y, z = float(ys), float(zs)
+            for _ in range(max_steps):
+                Ey = float(interp_Ey_yz((z, y)))
+                Ez = float(interp_Ez_yz((z, y)))
+                norm = np.hypot(Ey, Ez)
+                if norm < 1e-12:
+                    break
+                dy = (Ey / norm) * ds
+                dz = (Ez / norm) * ds
+                y += dy
+                z += dz
+        
+                if (y < y_min - 1.0) or (y > y_max + 1.0) or (z < z_min - 1.0) or (z > z_max + 1.0):
+                    break
+        
+                # Rod hit check
+                if (y**2 + (z - rod_z)**2) <= (rod_diameter/2)**2 and (-rod_length/2.0 <= x0 <= rod_length/2.0):
+                    hits.append((y, z))
+                    break
+            total += 1
+        
+        efficiency = len(hits) / max(1, total)
+        print(f"[Metrics] y–z slice capture efficiency (nozzle at x≈0): {efficiency:.2f}")
+        
+        # --- Field strength heatmap ---
+        fig3, ax3 = plt.subplots(figsize=(6, 6))
+        threshold = params.param18
+        cmap = plt.cm.plasma
+        norm = ThresholdNorm(vmin=0, vmax=threshold, threshold=threshold)
+        
+        im = ax3.pcolormesh(Y, Z, E_slice, cmap=cmap, norm=norm, shading="auto")
+        fig3.colorbar(im, ax=ax3, shrink=0.8, label="|E|")
+        
+        ax3.streamplot(Y, Z, Ey_slice, Ez_slice, color="white",
+                       linewidth=0.7, density=1.2, arrowsize=0.6)
+        
+        # Add rod projection
+        rod_circle = patches.Circle((0, rod_z), radius=rod_diameter/2,
+                                    color="grey", alpha=0.6, zorder=10)
+        ax3.add_patch(rod_circle)
+        
+        # Add nozzle position
+        ax3.plot(yn, zn, "ro")
+        
+        # Add plate projections
+        if (plate_height != 0.0) and (plate_width != 0.0):
+            for plate_center, color in zip([plate1_position[0], plate2_position[0]], ["blue", "green"]):
+                xp, yp, zp = plate_center
+                rect = patches.Rectangle(
+                    (yp - plate_height/2, zp - plate_width/2),
+                    plate_height, plate_width,
+                    fill=True, color=color, alpha=0.3, zorder=5
+                )
+                ax3.add_patch(rect)
+
+        # Annotate efficiency
+        if hits:
+            ax3.text(0.02, 0.95, f"Field efficiency: {efficiency:.2f}",
+                     transform=ax3.transAxes, fontsize=10, color="black",
+                     fontweight="bold",
+                     bbox=dict(facecolor="white", edgecolor="none", alpha=0.7),
+                     ha="left", va="top")
+
+        ax3.set_xlabel("y")
+        ax3.set_ylabel("z")
+        ax3.set_aspect("equal")
+        ax3.set_title(f"2D field (y–z, x={x0:.1f}) — nozzle @ x≈0")
+        plt.tight_layout()
+        
+        # --- Optional: plot angular hit density ---
+        if hits:
+            hits = np.array(hits)
+            y_hits, z_hits = hits[:, 0], hits[:, 1]
+            dy = y_hits - 0.0
+            dz = z_hits - rod_z
+            theta = np.arctan2(dz, dy)
+            r = np.sqrt(dy**2 + dz**2)
+            r_rod = rod_diameter / 2
+            mask = np.abs(r - r_rod) < 0.2
+            theta_surface = theta[mask]
+            
+            if len(theta_surface) > 0:
+                n_bins = 72
+                bins = np.linspace(-np.pi, np.pi, n_bins + 1)
+                counts, _ = np.histogram(theta_surface, bins=bins)
+                bin_centers = (bins[:-1] + bins[1:]) / 2
+
+                fig_polar, axp = plt.subplots(subplot_kw={'projection': 'polar'}, figsize=(5,5))
+                axp.plot(bin_centers, counts, color="crimson", linewidth=1.5)
+                axp.set_theta_zero_location("E")
+                axp.set_theta_direction(-1)
+                axp.set_title("Angular hit density around rod", va="bottom")
+                plt.tight_layout()
+                
+                # Combine both figures into one stream (optional)
+                buf = io.BytesIO()
+                fig_polar.savefig(buf, format="png", dpi=200, bbox_inches="tight")
+                buf.seek(0)
+                plt.close(fig3)
+                plt.close(fig_polar)
+
+                return StreamingResponse(buf, media_type="image/png")
+
+        # fallback: return main field figure if no hits
+        buf = io.BytesIO()
+        plt.savefig(buf, format="png")
+        buf.seek(0)
+        plt.close(fig3)
+        return StreamingResponse(buf, media_type="image/png")
     
     # --- 2D slice with field strength + field lines in y–z plane (x=0) ---
 
-    if slice_choice == 1:  # y-z
+    if slice_choice == 4:  # y-z
     
-        ny, nz = 200, 200  # resolution
+        ny, nz = 200, 400  # resolution
         x0= x_slice
         y_vals = np.linspace(-20, 20, ny)
         z_vals = np.linspace(-2,
                              nozzle_z + 0.5*distance_nozzle_rod, nz)
         
         Y, Z = np.meshgrid(y_vals, z_vals)
-        #X = np.zeros_like(Y)  # x=0 plane
         X = np.full_like(Y, x0)  # fixed x-slice
         
         # Compute field strength and field vectors
@@ -1541,17 +1273,9 @@ async def multifield_calc(params: Parameters):
         efficiency = len(hits) / max(1, total)
         print(f"[Metrics] y–z slice capture efficiency: {efficiency:.2f}")
         
-        # if hits:
-        #     hit_angles = [np.arctan2(y, z - rod_z) for (y, z) in hits]
-        #     hist, bins = np.histogram(hit_angles, bins=12, range=(-np.pi, np.pi))
-        #     print(f"[Metrics] Hit density histogram (angles): {hist.tolist()}")
-        #     print("raw hit angles (radians) first 20:", np.array(hit_angles)[:20])  
-        
-              
         # Plot heatmap of field strength
         fig3, ax3 = plt.subplots(figsize=(6, 6))
         
-#        threshold = 10  # adjust units as before
         threshold = params.param18
         cmap = plt.cm.plasma
         norm = ThresholdNorm(vmin=0, vmax=threshold, threshold=threshold)
