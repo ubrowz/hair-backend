@@ -1077,6 +1077,7 @@ async def multifield_calc(params: Parameters):
         seed_radius = 0.2
         rng = np.random.default_rng(42)
         angles = np.linspace(0, 2*np.pi, Nseeds_per_nozzle, endpoint=False)
+        
         angles += rng.uniform(-np.pi/Nseeds_per_nozzle, np.pi/Nseeds_per_nozzle, size=Nseeds_per_nozzle)
         radii = seed_radius * (1.0 + 0.05 * rng.uniform(-1, 1, size=Nseeds_per_nozzle))
         seeds = [(yn + r * np.cos(a), zn + r * np.sin(a)) for r, a in zip(radii, angles)]        
@@ -1172,11 +1173,11 @@ async def multifield_calc(params: Parameters):
             counts, edges = np.histogram(angles, bins=Nbins, range=(0, 2*np.pi))
             centers = (edges[:-1] + edges[1:]) / 2
             counts = counts / np.max(counts) if np.max(counts) > 0 else counts
-            counts = gaussian_filter1d(counts, sigma=1.5)
+            counts = gaussian_filter1d(counts, sigma=2)
             
             # --- Define envelope scaling ---
             base_radius = rod_diameter / 2
-            petal_length = 4.0  # constant visible scaling, same across runs
+            petal_length = 8.0  # constant visible scaling, same across runs
             
             # Compute outer radius per angle
             radii = base_radius + petal_length * counts
