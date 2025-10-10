@@ -1176,7 +1176,7 @@ async def multifield_calc(params: Parameters):
             
             # --- Define envelope scaling ---
             base_radius = rod_diameter / 2
-            petal_length = 10.0  # constant visible scaling, same across runs
+            petal_length = 4.0  # constant visible scaling, same across runs
             
             # Compute outer radius per angle
             radii = base_radius + petal_length * counts
