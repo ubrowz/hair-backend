@@ -1169,44 +1169,112 @@ async def multifield_calc(params: Parameters):
         plt.tight_layout()
 
         # --- Angular hit density around rod, overlaid on streamplot ---
+        # if hits:
+        #     # --- Angular hit density envelope around the rod front view ---
+            
+        #     hits_array = np.array(hits)
+        #     angles = np.arctan2(hits_array[:, 0], hits_array[:, 1] - rod_z)  # (y,z) relative to rod center
+        #     angles = np.mod(angles, 2*np.pi)
+            
+        #     Nbins = 180
+        #     counts, edges = np.histogram(angles, bins=Nbins, range=(0, 2*np.pi))
+        #     centers = (edges[:-1] + edges[1:]) / 2
+        #     counts = counts / np.max(counts) if np.max(counts) > 0 else counts
+        #     counts = gaussian_filter1d(counts, sigma=2)
+            
+        #     # --- Define envelope scaling ---
+        #     base_radius = rod_diameter / 2
+        #     petal_length = 8.0  # constant visible scaling, same across runs
+            
+        #     # Compute outer radius per angle
+        #     radii = base_radius + petal_length * counts
+            
+        #     # Convert polar coordinates (angle, radius) → Cartesian (y,z)
+        #     y_env = np.sin(centers) * radii
+        #     z_env = rod_z + np.cos(centers) * radii
+            
+        #     # Close the loop for polygon
+        #     y_env = np.append(y_env, y_env[0])
+        #     z_env = np.append(z_env, z_env[0])
+            
+        #     # --- Draw envelope as a filled translucent patch ---
+        #     ax3.plot(
+        #         y_env,
+        #         z_env,
+        #         color="black",
+        #         alpha=0.8,
+        #         linewidth=1.0,
+        #         zorder=15,
+        #     )
+        # # parameters you can tune (fixed-scale for comparison)
+        Nbins = 120               # angular resolution (bins around circle)
+        kernel_sigma_bins = 3.0   # smoothing width in bins (circular)
+        petal_length = 4.0        # absolute extension of envelope beyond rod radius (fixed)
+        show_raw_hist = False     # if True plot raw histogram faintly for debugging
+        
         if hits:
-            # --- Angular hit density envelope around the rod front view ---
-            
-            hits_array = np.array(hits)
-            angles = np.arctan2(hits_array[:, 0], hits_array[:, 1] - rod_z)  # (y,z) relative to rod center
-            angles = np.mod(angles, 2*np.pi)
-            
-            Nbins = 180
-            counts, edges = np.histogram(angles, bins=Nbins, range=(0, 2*np.pi))
-            centers = (edges[:-1] + edges[1:]) / 2
-            counts = counts / np.max(counts) if np.max(counts) > 0 else counts
-            counts = gaussian_filter1d(counts, sigma=2)
-            
-            # --- Define envelope scaling ---
-            base_radius = rod_diameter / 2
-            petal_length = 8.0  # constant visible scaling, same across runs
-            
-            # Compute outer radius per angle
-            radii = base_radius + petal_length * counts
-            
-            # Convert polar coordinates (angle, radius) → Cartesian (y,z)
+            hits_arr = np.array(hits)              # shape (N_hits, 2) with (y, z)
+            y_hits = hits_arr[:, 0]
+            z_hits = hits_arr[:, 1]
+        
+            # compute angles relative to rod center (y=0, z=rod_z)
+            dy = y_hits - 0.0
+            dz = z_hits - rod_z
+            angles = np.arctan2(dz, dy)           # in [-pi, pi)
+            angles = (angles + 2*np.pi) % (2*np.pi)  # map to [0, 2pi)
+        
+            # histogram on [0, 2pi)
+            counts, edges = np.histogram(angles, bins=Nbins, range=(0.0, 2*np.pi))
+            centers = 0.5 * (edges[:-1] + edges[1:])
+        
+            # circular smoothing by wrapped Gaussian kernel:
+            #  - using gaussian_filter1d on a doubled array simulates wrap-around
+            counts_wrap = np.concatenate([counts, counts, counts])         # triple to avoid edge effects
+            smoothed_wrap = gaussian_filter1d(counts_wrap.astype(float), sigma=kernel_sigma_bins, mode='constant')
+            # take middle segment as circularly-smoothed result
+            smoothed = smoothed_wrap[Nbins:2*Nbins]
+        
+            # normalize to [0,1] (avoid division by zero)
+            if smoothed.max() > 0:
+                smoothed_norm = smoothed / (smoothed.max() + 1e-12)
+            else:
+                smoothed_norm = smoothed
+        
+            # Optional: further smooth with small gaussian on the smoothed_norm (tune if needed)
+            smoothed_norm = gaussian_filter1d(smoothed_norm, sigma=1.0)
+        
+            # Build polar envelope (closed loop)
+            base_radius = rod_diameter / 2.0
+            radii = base_radius + petal_length * smoothed_norm        # absolute scaling (fixed)
+            # map centers -> cartesian for plotting on (y,z) axes:
             y_env = np.sin(centers) * radii
             z_env = rod_z + np.cos(centers) * radii
-            
-            # Close the loop for polygon
+        
+            # close loop
             y_env = np.append(y_env, y_env[0])
             z_env = np.append(z_env, z_env[0])
-            
-            # --- Draw envelope as a filled translucent patch ---
-            ax3.plot(
-                y_env,
-                z_env,
-                color="black",
-                alpha=0.8,
-                linewidth=1.0,
-                zorder=15,
-            )
-            
+        
+            # (Optional) draw faint raw histogram for debugging
+            if show_raw_hist:
+                raw_radii = base_radius + petal_length * (counts / (counts.max() + 1e-12))
+                y_raw = np.sin(centers) * raw_radii
+                z_raw = rod_z + np.cos(centers) * raw_radii
+                y_raw = np.append(y_raw, y_raw[0])
+                z_raw = np.append(z_raw, z_raw[0])
+                ax3.plot(y_raw, z_raw, color='gray', alpha=0.35, linewidth=0.8, zorder=12)
+        
+            # Plot final envelope: outline and optional fill
+            ax3.plot(y_env, z_env, color="black", alpha=0.9, linewidth=1.2, zorder=20)
+            ax3.fill(y_env, z_env, color="crimson", alpha=0.35, zorder=18)
+        
+            # annotate max and mean if wanted
+            max_idx = np.argmax(smoothed_norm)
+            peak_angle_deg = np.degrees(centers[max_idx])
+            peak_val = smoothed_norm[max_idx]
+            ax3.text(0.02, 0.96, f"Peak angle: {peak_angle_deg:.1f}°\nPeak (norm): {peak_val:.2f}",
+                     transform=ax3.transAxes, fontsize=9, bbox=dict(facecolor='white', alpha=0.7), zorder=50)
+        
+        # ------------- end circular envelope block -------------            
 
         # --- Optional: plot angular hit density ---
         # if hits:
