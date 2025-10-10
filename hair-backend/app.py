@@ -1178,11 +1178,12 @@ async def multifield_calc(params: Parameters):
                 counts, _ = np.histogram(theta_surface, bins=bins)
                 bin_centers = 0.5 * (bins[:-1] + bins[1:])
                 # normalize
-                counts = counts / np.max(counts + 1e-9)
+                #counts = counts / np.max(counts + 1e-9)
+                smooth_counts = gaussian_filter1d(counts, sigma=2)
         
                 # draw around the rod circle
-                for c, th in zip(counts, bin_centers):
-                    r_outer = r_rod * (1 + 10.0 * c)
+                for c, th in zip(smooth_counts, bin_centers):
+                    r_outer = r_rod + c
                     y1 = r_rod * np.cos(th)
                     z1 = rod_z + r_rod * np.sin(th)
                     y2 = r_outer * np.cos(th)
