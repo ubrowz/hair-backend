@@ -1176,7 +1176,7 @@ async def multifield_calc(params: Parameters):
             
             # --- Define envelope scaling ---
             base_radius = rod_diameter / 2
-            petal_length = 4.0  # constant visible scaling, same across runs
+            petal_length = 10.0  # constant visible scaling, same across runs
             
             # Compute outer radius per angle
             radii = base_radius + petal_length * counts
@@ -1190,15 +1190,16 @@ async def multifield_calc(params: Parameters):
             z_env = np.append(z_env, z_env[0])
             
             # --- Draw envelope as a filled translucent patch ---
-            ax3.fill(
+            ax3.plot(
                 y_env,
                 z_env,
                 color="black",
-                alpha=0.5,
+                alpha=0.8,
                 linewidth=1.0,
-                edgecolor="black",
                 zorder=15,
             )
+            
+
         # --- Optional: plot angular hit density ---
         # if hits:
         #     hits = np.array(hits)
