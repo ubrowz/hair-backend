@@ -1162,34 +1162,43 @@ async def multifield_calc(params: Parameters):
 
         # --- Angular hit density around rod, overlaid on streamplot ---
         if hits:
-            hits = np.array(hits)
-            y_hits, z_hits = hits[:, 0], hits[:, 1]
-            dy = y_hits - 0.0
-            dz = z_hits - rod_z
-            theta = np.arctan2(dz, dy)
-            r = np.sqrt(dy**2 + dz**2)
-            r_rod = rod_diameter / 2
-            mask = np.abs(r - r_rod) < 0.3
-            theta_surface = theta[mask]
+            # --- Angular hit density envelope around the rod front view ---
             
-            if len(theta_surface) > 0:
-                n_bins = 90
-                bins = np.linspace(-np.pi, np.pi, n_bins + 1)
-                counts, _ = np.histogram(theta_surface, bins=bins)
-                bin_centers = 0.5 * (bins[:-1] + bins[1:])
-                # normalize
-                #counts = counts / np.max(counts + 1e-9)
-                smooth_counts = gaussian_filter1d(counts, sigma=2)
-        
-                # draw around the rod circle
-                for c, th in zip(smooth_counts, bin_centers):
-                    r_outer = r_rod + c
-                    y1 = r_rod * np.cos(th)
-                    z1 = rod_z + r_rod * np.sin(th)
-                    y2 = r_outer * np.cos(th)
-                    z2 = rod_z + r_outer * np.sin(th)
-                    ax3.plot([y1, y2], [z1, z2], color="black", alpha=0.8, lw=1.5)        
-
+            hits_array = np.array(hits)
+            angles = np.arctan2(hits_array[:, 0], hits_array[:, 1] - rod_z)  # (y,z) relative to rod center
+            angles = np.mod(angles, 2*np.pi)
+            
+            Nbins = 180
+            counts, edges = np.histogram(angles, bins=Nbins, range=(0, 2*np.pi))
+            centers = (edges[:-1] + edges[1:]) / 2
+            counts = counts / np.max(counts) if np.max(counts) > 0 else counts
+            counts = gaussian_filter1d(counts, sigma=1.5)
+            
+            # --- Define envelope scaling ---
+            base_radius = rod_diameter / 2
+            petal_length = 4.0  # constant visible scaling, same across runs
+            
+            # Compute outer radius per angle
+            radii = base_radius + petal_length * counts
+            
+            # Convert polar coordinates (angle, radius) → Cartesian (y,z)
+            y_env = np.sin(centers) * radii
+            z_env = rod_z + np.cos(centers) * radii
+            
+            # Close the loop for polygon
+            y_env = np.append(y_env, y_env[0])
+            z_env = np.append(z_env, z_env[0])
+            
+            # --- Draw envelope as a filled translucent patch ---
+            ax3.fill(
+                y_env,
+                z_env,
+                color="black",
+                alpha=0.5,
+                linewidth=1.0,
+                edgecolor="black",
+                zorder=15,
+            )
         # --- Optional: plot angular hit density ---
         # if hits:
         #     hits = np.array(hits)
