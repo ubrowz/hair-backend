@@ -1050,7 +1050,7 @@ async def multifield_calc(params: Parameters):
         z_min = 0.0
         z_max = rod_z + max_y_lim
         
-        y_vals = np.linspace(x_min, x_max, nx)
+        y_vals = np.linspace(y_min, y_max, ny)
         z_vals = np.linspace(z_min, z_max, nz)
         
         Y, Z = np.meshgrid(y_vals, z_vals)
