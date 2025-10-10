@@ -1247,8 +1247,11 @@ async def multifield_calc(params: Parameters):
             base_radius = rod_diameter / 2.0
             radii = base_radius + petal_length * smoothed_norm        # absolute scaling (fixed)
             # map centers -> cartesian for plotting on (y,z) axes:
-            y_env = np.sin(centers) * radii
-            z_env = rod_z + np.cos(centers) * radii
+            y_env = np.cos(centers) * radii
+            z_env = rod_z + np.sin(centers) * radii
+            # angle_shift = np.deg2rad(-90)  # rotate so 0° points along +z
+            # y_env = rod_center_y + (rod_radius + r_env) * np.cos(theta_bins + angle_shift)
+            # z_env = rod_center_z + (rod_radius + r_env) * np.sin(theta_bins + angle_shift)
         
             # close loop
             y_env = np.append(y_env, y_env[0])
