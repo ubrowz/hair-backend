@@ -1072,11 +1072,15 @@ async def multifield_calc(params: Parameters):
         xn, yn, zn = nozzle_x0
         
         # Seeds on a circle around that nozzle (projected to y–z)
-        Nseeds_per_nozzle = 180
+        # --- Seeds around nozzle (improved) ---
+        Nseeds_per_nozzle = 720
         seed_radius = 0.2
+        rng = np.random.default_rng(42)
         angles = np.linspace(0, 2*np.pi, Nseeds_per_nozzle, endpoint=False)
-        seeds = [(yn + seed_radius * np.cos(a), zn + seed_radius * np.sin(a)) for a in angles]
-        
+        angles += rng.uniform(-np.pi/Nseeds_per_nozzle, np.pi/Nseeds_per_nozzle, size=Nseeds_per_nozzle)
+        radii = seed_radius * (1.0 + 0.05 * rng.uniform(-1, 1, size=Nseeds_per_nozzle))
+        seeds = [(yn + r * np.cos(a), zn + r * np.sin(a)) for r, a in zip(radii, angles)]        
+
         # --- Trace field lines ---
         hits = []
         total = 0
@@ -1155,8 +1159,8 @@ async def multifield_calc(params: Parameters):
         ax3.set_aspect("equal")
         ax3.set_title(f"2D field (y–z, x={x0:.1f}) — nozzle @ x≈0")
         plt.tight_layout()
-        
-        # --- Optional: plot angular hit density ---
+
+        # --- Angular hit density around rod, overlaid on streamplot ---
         if hits:
             hits = np.array(hits)
             y_hits, z_hits = hits[:, 0], hits[:, 1]
@@ -1165,30 +1169,59 @@ async def multifield_calc(params: Parameters):
             theta = np.arctan2(dz, dy)
             r = np.sqrt(dy**2 + dz**2)
             r_rod = rod_diameter / 2
-            mask = np.abs(r - r_rod) < 0.2
+            mask = np.abs(r - r_rod) < 0.3
             theta_surface = theta[mask]
             
             if len(theta_surface) > 0:
-                n_bins = 72
+                n_bins = 90
                 bins = np.linspace(-np.pi, np.pi, n_bins + 1)
                 counts, _ = np.histogram(theta_surface, bins=bins)
-                bin_centers = (bins[:-1] + bins[1:]) / 2
+                bin_centers = 0.5 * (bins[:-1] + bins[1:])
+                # normalize
+                counts = counts / np.max(counts + 1e-9)
+        
+                # draw around the rod circle
+                for c, th in zip(counts, bin_centers):
+                    r_outer = r_rod * (1 + 0.25 * c)
+                    y1 = r_rod * np.cos(th)
+                    z1 = rod_z + r_rod * np.sin(th)
+                    y2 = r_outer * np.cos(th)
+                    z2 = rod_z + r_outer * np.sin(th)
+                    ax3.plot([y1, y2], [z1, z2], color="black", alpha=0.8, lw=1.5)        
 
-                fig_polar, axp = plt.subplots(subplot_kw={'projection': 'polar'}, figsize=(5,5))
-                axp.plot(bin_centers, counts, color="crimson", linewidth=1.5)
-                axp.set_theta_zero_location("E")
-                axp.set_theta_direction(-1)
-                axp.set_title("Angular hit density around rod", va="bottom")
-                plt.tight_layout()
+        # --- Optional: plot angular hit density ---
+        # if hits:
+        #     hits = np.array(hits)
+        #     y_hits, z_hits = hits[:, 0], hits[:, 1]
+        #     dy = y_hits - 0.0
+        #     dz = z_hits - rod_z
+        #     theta = np.arctan2(dz, dy)
+        #     r = np.sqrt(dy**2 + dz**2)
+        #     r_rod = rod_diameter / 2
+        #     mask = np.abs(r - r_rod) < 0.2
+        #     theta_surface = theta[mask]
+            
+        #     if len(theta_surface) > 0:
+        #         n_bins = 72
+        #         bins = np.linspace(-np.pi, np.pi, n_bins + 1)
+        #         counts, _ = np.histogram(theta_surface, bins=bins)
+        #         bin_centers = (bins[:-1] + bins[1:]) / 2
+
+                # fig_polar, axp = plt.subplots(subplot_kw={'projection': 'polar'}, figsize=(5,5))
+                # axp.plot(bin_centers, counts, color="crimson", linewidth=1.5)
+                # axp.set_theta_zero_location("E")
+                # axp.set_theta_direction(-1)
+                # axp.set_title("Angular hit density around rod", va="bottom")
+                # plt.tight_layout()
                 
-                # Combine both figures into one stream (optional)
-                buf = io.BytesIO()
-                fig_polar.savefig(buf, format="png", dpi=200, bbox_inches="tight")
-                buf.seek(0)
-                plt.close(fig3)
-                plt.close(fig_polar)
+                # # Combine both figures into one stream (optional)
+                # buf = io.BytesIO()
+                # fig_polar.savefig(buf, format="png", dpi=200, bbox_inches="tight")
+                # buf.seek(0)
+                # plt.close(fig3)
+                # plt.close(fig_polar)
 
-                return StreamingResponse(buf, media_type="image/png")
+#                return StreamingResponse(buf, media_type="image/png")
 
         # fallback: return main field figure if no hits
         buf = io.BytesIO()
