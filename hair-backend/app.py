@@ -499,7 +499,44 @@ pdf = norm.pdf
 @app.post("/multiflds/")
 async def multifield_calc(params: Parameters):
     
-
+    def rotate_around_z(positions, angle_deg, center=(0.0, 0.0)):
+        """
+        Rotate a list of (x, y, z) positions around the z-axis,
+        optionally around a custom center in the x–y plane.
+    
+        Parameters
+        ----------
+        positions : list of tuples
+            List of (x, y, z) coordinates to rotate.
+        angle_deg : float
+            Rotation angle in degrees (counterclockwise looking from +z toward origin).
+        center : tuple of floats, optional
+            (x_center, y_center) around which to rotate. Default = (0.0, 0.0)
+    
+        Returns
+        -------
+        list of tuples
+            The rotated (x, y, z) coordinates.
+        """
+        angle_rad = np.deg2rad(angle_deg)
+        cos_a, sin_a = np.cos(angle_rad), np.sin(angle_rad)
+        cx, cy = center
+    
+        rotated = []
+        for (x, y, z) in positions:
+            # Translate to origin
+            x_shifted, y_shifted = x - cx, y - cy
+    
+            # Rotate in x–y plane
+            x_rot = x_shifted * cos_a - y_shifted * sin_a
+            y_rot = x_shifted * sin_a + y_shifted * cos_a
+    
+            # Translate back
+            x_new, y_new = x_rot + cx, y_rot + cy
+    
+            rotated.append((x_new, y_new, z))
+        return rotated
+    
     max_y_lim = 26.0
 
     V_nozzle = params.param1
@@ -533,6 +570,18 @@ async def multifield_calc(params: Parameters):
                                  n_nozzles)]
     plate1_position = [(0.0-((n_nozzles-1)*spacing)/2+nozzles_center-plate_spacing, nozzles_shift, nozzle_z+plate_height/2.0 - 1.0)]
     plate2_position = [((n_nozzles-1)*spacing-((n_nozzles-1)*spacing)/2+nozzles_center+plate_spacing, nozzles_shift, nozzle_z+plate_height/2.0 - 1.0)]
+    
+    
+    #---to be removed
+    
+    rotation_angle = 45.0
+    center_of_rotation = (nozzles_center, nozzles_shift)  #around nozzle centerline
+
+    nozzle_positions = rotate_around_z(nozzle_positions, rotation_angle, center=center_of_rotation)
+    plate1_position = rotate_around_z(plate1_position, rotation_angle, center=center_of_rotation)
+    plate2_position = rotate_around_z(plate2_position, rotation_angle, center=center_of_rotation)
+    
+    #----
     
     
     # anything above threshold is shown as yellow
@@ -862,16 +911,17 @@ async def multifield_calc(params: Parameters):
         )
         ax2.add_patch(rod_rect)
         
-                # Add nozzle positions (as red dots)
+        # Add nozzle positions (as red dots)
         for (xn, yn, zn) in nozzle_positions:
             ax2.plot(xn, zn, "ro")
             
         # Add plate projections (vertical lines)
-        if (plate_height != 0.0) and (plate_width != 0.0):
-            for plate_center, color in zip([plate1_position[0], plate2_position[0]], ["blue", "green"]):
-                xp, yp, zp = plate_center
-                ax2.add_line(plt.Line2D([xp, xp], [zp - plate_width/2, zp + plate_width/2],
-                                        color=color, linewidth=2, alpha=0.6))
+        if False:
+            if (plate_height != 0.0) and (plate_width != 0.0):
+                for plate_center, color in zip([plate1_position[0], plate2_position[0]], ["blue", "green"]):
+                    xp, yp, zp = plate_center
+                    ax2.add_line(plt.Line2D([xp, xp], [zp - plate_width/2, zp + plate_width/2],
+                                            color=color, linewidth=2, alpha=0.6))
         if hits:
             # Add second y-axis for histogram overlay
             ax_hist = ax2.twinx()
@@ -1268,14 +1318,14 @@ async def multifield_calc(params: Parameters):
         
             # Plot final envelope: outline and optional fill
             ax3.plot(y_env, z_env, color="black", alpha=0.9, linewidth=1.2, zorder=20)
-            ax3.fill(y_env, z_env, color="crimson", alpha=0.35, zorder=18)
+            #ax3.fill(y_env, z_env, color="crimson", alpha=0.35, zorder=18)
         
             # annotate max and mean if wanted
-            max_idx = np.argmax(smoothed_norm)
-            peak_angle_deg = np.degrees(centers[max_idx])
-            peak_val = smoothed_norm[max_idx]
-            ax3.text(0.02, 0.96, f"Peak angle: {peak_angle_deg:.1f}°\nPeak (norm): {peak_val:.2f}",
-                     transform=ax3.transAxes, fontsize=9, bbox=dict(facecolor='white', alpha=0.7), zorder=50)
+            # max_idx = np.argmax(smoothed_norm)
+            # peak_angle_deg = np.degrees(centers[max_idx])
+            # peak_val = smoothed_norm[max_idx]
+            # ax3.text(0.02, 0.96, f"Peak angle: {peak_angle_deg:.1f}°\nPeak (norm): {peak_val:.2f}",
+            #          transform=ax3.transAxes, fontsize=9, bbox=dict(facecolor='white', alpha=0.7), zorder=50)
         
         # ------------- end circular envelope block -------------            
 
