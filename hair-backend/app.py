@@ -1207,9 +1207,9 @@ async def multifield_calc(params: Parameters):
         #         zorder=15,
         #     )
         # # parameters you can tune (fixed-scale for comparison)
-        Nbins = 120               # angular resolution (bins around circle)
+        Nbins = 180               # angular resolution (bins around circle)
         kernel_sigma_bins = 3.0   # smoothing width in bins (circular)
-        petal_length = 4.0        # absolute extension of envelope beyond rod radius (fixed)
+        petal_length = 1.0        # absolute extension of envelope beyond rod radius (fixed)
         show_raw_hist = False     # if True plot raw histogram faintly for debugging
         
         if hits:
