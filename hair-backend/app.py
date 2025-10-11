@@ -1235,10 +1235,10 @@ async def multifield_calc(params: Parameters):
             smoothed = smoothed_wrap[Nbins:2*Nbins]
         
             # normalize to [0,1] (avoid division by zero)
-            if smoothed.max() > 0:
-                smoothed_norm = smoothed / (smoothed.max() + 1e-12)
-            else:
-                smoothed_norm = smoothed
+            #if smoothed.max() > 0:
+            #    smoothed_norm = smoothed / (smoothed.max() + 1e-12)
+            #else:
+            smoothed_norm = smoothed
         
             # Optional: further smooth with small gaussian on the smoothed_norm (tune if needed)
             smoothed_norm = gaussian_filter1d(smoothed_norm, sigma=1.0)
