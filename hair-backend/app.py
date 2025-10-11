@@ -574,15 +574,15 @@ async def multifield_calc(params: Parameters):
     
     #---to be removed
     
-    rotation_angle = 90.0
-    center_of_rotation = (nozzles_center, nozzles_shift)  #around nozzle centerline
-
-    nozzle_positions = rotate_around_z(nozzle_positions, rotation_angle, center=center_of_rotation)
-    plate1_position = rotate_around_z(plate1_position, rotation_angle, center=center_of_rotation)
-    plate2_position = rotate_around_z(plate2_position, rotation_angle, center=center_of_rotation)
+    if False:
+        rotation_angle = 90.0
+        center_of_rotation = (nozzles_center, nozzles_shift)  #around nozzle centerline
     
-    #----
+        nozzle_positions = rotate_around_z(nozzle_positions, rotation_angle, center=center_of_rotation)
+        plate1_position = rotate_around_z(plate1_position, rotation_angle, center=center_of_rotation)
+        plate2_position = rotate_around_z(plate2_position, rotation_angle, center=center_of_rotation)
     
+    #----   
     
     # anything above threshold is shown as yellow
     threshold = params.param18
@@ -712,58 +712,6 @@ async def multifield_calc(params: Parameters):
         Ez_total *= alpha_scale
     
         return np.array([Ex_total, Ey_total, Ez_total])
-
-
-        
-    # def normalize_density_from_hist(hist, bins):
-    #     """Convert counts histogram to normalized density & bin centers."""
-    #     hist = np.asarray(hist, dtype=float)
-    #     bin_centers = 0.5 * (bins[:-1] + bins[1:])
-    #     total = hist.sum()
-    #     if total <= 0:
-    #         return bin_centers, np.zeros_like(bin_centers)
-    #     density = hist / total
-    #     return bin_centers, density
-
-    
-    # def fwhm_from_density(bin_centers, density, sigma_smooth=1.0):
-    #     """Estimate FWHM of the (smoothed) peak. Returns None if no peak."""
-    #     d = gaussian_filter1d(density, sigma=sigma_smooth)
-    #     if d.max() <= 0:
-    #         return None
-    #     half = d.max() / 2.0
-    #     # find contiguous region where d >= half
-    #     mask = d >= half
-    #     if not mask.any():
-    #         return None
-    #     # find leftmost and rightmost index of the largest contiguous True region
-    #     # prefer the region containing the global maximum
-    #     max_idx = np.argmax(d)
-    #     # find contiguous run around max_idx
-    #     left = max_idx
-    #     while left > 0 and mask[left-1]:
-    #         left -= 1
-    #     right = max_idx
-    #     while right < len(d)-1 and mask[right+1]:
-    #         right += 1
-    #     # convert to width in x units
-    #     x_left = np.interp(left, np.arange(len(bin_centers)), bin_centers)
-    #     x_right = np.interp(right, np.arange(len(bin_centers)), bin_centers)
-    #     return x_right - x_left
-
-    # def focus_metrics_from_hist(hist, bins, smooth_sigma=1.0):
-    #     """
-    #     Compute a set of 'focus' metrics from a histogram (counts + bin edges).
-    #     Returns dict with: effective_std, fwhm, gini, entropy, kurtosis, peak_mean_ratio, fraction_center
-    #     """
-    #     bin_centers, density = normalize_density_from_hist(hist, bins)
-    #     # smooth density for FWHM and more robust peak detection
-    #     #d_smooth = gaussian_filter1d(density, sigma=smooth_sigma)
-    
-    #     #eff_std = effective_std(bin_centers, density)
-    #     fwhm = fwhm_from_density(bin_centers, density, sigma_smooth=smooth_sigma)
-        
-    #     return fwhm
     
     def field_stats_around_rod(sample_radius = 0.002,  # meters (e.g. 2 mm)
                            nrad=36, nlen=20):
@@ -788,7 +736,6 @@ async def multifield_calc(params: Parameters):
         print("Centerline E_mid |E|:", np.linalg.norm([Exc, Eyc, Ezc]))
         
         #if np.mean(Evals)/np.linalg.norm([Exc, Eyc, Ezc]) > 10x or 20x, increase soft_a by factor of 5 or more.
-
 
     
     # --- 2D slice with field strength + field lines in x–z plane (y=y_slice) ---
@@ -916,12 +863,12 @@ async def multifield_calc(params: Parameters):
             ax2.plot(xn, zn, "ro")
             
         # Add plate projections (vertical lines)
-        if False:
-            if (plate_height != 0.0) and (plate_width != 0.0):
-                for plate_center, color in zip([plate1_position[0], plate2_position[0]], ["blue", "green"]):
-                    xp, yp, zp = plate_center
-                    ax2.add_line(plt.Line2D([xp, xp], [zp - plate_width/2, zp + plate_width/2],
-                                            color=color, linewidth=2, alpha=0.6))
+        
+        if (plate_height != 0.0) and (plate_width != 0.0):
+            for plate_center, color in zip([plate1_position[0], plate2_position[0]], ["blue", "green"]):
+                xp, yp, zp = plate_center
+                ax2.add_line(plt.Line2D([xp, xp], [zp - plate_width/2, zp + plate_width/2],
+                                        color=color, linewidth=2, alpha=0.6))
         if hits:
             # Add second y-axis for histogram overlay
             ax_hist = ax2.twinx()
