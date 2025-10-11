@@ -574,7 +574,7 @@ async def multifield_calc(params: Parameters):
     
     #---to be removed
     
-    rotation_angle = 45.0
+    rotation_angle = 90.0
     center_of_rotation = (nozzles_center, nozzles_shift)  #around nozzle centerline
 
     nozzle_positions = rotate_around_z(nozzle_positions, rotation_angle, center=center_of_rotation)
